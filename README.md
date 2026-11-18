@@ -1,200 +1,94 @@
-# WAYFARER AI
+# WAYFARER AI — Real-data travel platform prototype
 
-**An intelligent, agentic travel companion — planning, comparing, managing and supporting the whole journey.**
+WAYFARER AI is a responsive travel-planning workspace built with HTML, CSS and vanilla JavaScript. It is configured to **not show preloaded dummy travel data**.
 
-This is a runnable vanilla HTML/CSS/JavaScript prototype prepared for Hackyard Build 2026. It includes an interactive product UI, local demo persistence, a rule-based demo planner, approval-gated task execution, simulated travel inventory, trip records, booking records, task history and optional Firebase/Supabase infrastructure.
+## Start here
 
-> **Honesty note:** the app works in demo mode without credentials. Travel inventory, prices and reservations are simulated and labelled DEMO. Agent37 Personal is not reported as connected unless you configure a bridge and a request succeeds. An Agent37 instance ID by itself is not a chat API URL. The Agent37 Personal integration point is intentionally configurable and does not use the paid Cloud API.
+New to coding? Read **[START-HERE.md](./START-HERE.md)**. It explains how to install Node.js, run the website on a Mac, create Firebase, deploy the site, configure real Amadeus Production search, and understand the Agent37 Personal connection limitation.
 
-## 1. Run the project locally
+## No fabricated data policy
 
-Requirements: Node.js 18+.
+- No seeded demo user, trip, destination catalogue, flight, hotel, activity, booking, voucher, price, rating or generated AI task is bundled.
+- Place lookup and weather use Open-Meteo public endpoints.
+- Currency rates use Frankfurter reference data, not live card/cash quotes.
+- Flights, hotels and activities call Amadeus Production only through `workers/travel-api`. The Worker does not use `test.api.amadeus.com` and rejects missing credentials rather than inventing results.
+- The user's own trips, booking details, profile and support notes are saved only when they enter them.
+- This version does not execute supplier bookings, payments, cancellations or rebookings. It displays booking information supplied by the user and supports document uploads after optional storage configuration.
+- Agent37 Personal is not claimed to be connected unless a real, supported bridge has been provided and responds successfully. An instance ID alone is not a website chat API.
+
+## Stack
+
+- Frontend: HTML5, CSS3, vanilla JavaScript modules.
+- Authentication and application data: Firebase Authentication + Cloud Firestore.
+- Static hosting: Firebase Hosting.
+- Secure live travel API proxy: Cloudflare Worker.
+- Supplier data: Amadeus Self-Service **Production** API (requires Production access and may incur charges).
+- Public data: Open-Meteo Geocoding/Weather and Frankfurter reference exchange rates.
+- Optional private document storage: Supabase Storage signed URLs created by a Firebase Cloud Function. This requires Firebase billing-enabled Functions and is not necessary to run the rest of the app.
+- Agent interface: `js/agent37Adapter.js`; it intentionally requires a documented Agent37 Personal integration/bridge and does not use Agent37 Cloud.
+
+## Run locally
+
+Requirements: Node.js LTS.
 
 ```bash
-cd wayfarer-ai
 npm run dev
 ```
 
-Open **http://localhost:8080**. No npm install is required for the frontend demo. The app seeds a sample Goa trip in local browser storage on first run.
-
-To check JavaScript syntax:
+Open <http://localhost:8080>. No root-level `npm install` is required. To check JavaScript syntax:
 
 ```bash
 npm run check
-node --check functions/index.js
 ```
 
-The local server is a small Node static-file server. Do not expose it to the public internet as a production server.
+## Setup
 
-## 2. What works in demo mode
+Follow the beginner guide **[START-HERE.md](./START-HERE.md)**. The sequence is:
 
-- Dashboard and responsive editorial UI.
-- Destination discovery, search and wishlist.
-- Conversational travel planner with an explicitly labelled built-in demo planner.
-- AI Workspace with natural-language task parsing, multi-step plans, before/after previews and approval/rejection.
-- Approved demo trip creation, itinerary updates, budget adjustments, packing checklist creation and demo booking/cancellation records.
-- Flight, stay and experience comparison using clearly labelled simulated inventory.
-- Trip dashboard, itinerary detail, booking references and demo policy records.
-- Budget breakdown, support request form, notification centre and AI execution history.
-- Website Guide chatbot for explaining the website's own pages and workflows.
-- Light/dark mode, responsive sidebar, global search and PWA shell caching.
+1. Install Node.js and run the site locally.
+2. Create Firebase, configure `js/config.js`, enable sign-in and deploy Firestore rules.
+3. If you have Amadeus Production access, deploy `workers/travel-api` to Cloudflare and set the Worker URL in `js/config.js`.
+4. Deploy the site with `firebase deploy --only hosting`.
+5. Configure Agent37 Personal only after you obtain its official supported external integration details. Do not invent a URL or paste secrets into browser files.
+6. Configure Supabase document storage only if you need it and accept the Firebase Functions billing requirement.
 
-The AI Workspace is a bounded prototype, not an unrestricted browser agent. It uses an allowlisted set of actions and does not execute arbitrary code, SQL or untrusted commands. Every mutation is presented for explicit user confirmation first.
+## Project map
 
-## 3. Configuration
-
-Copy the template if you want to keep your own local settings:
-
-```bash
-cp js/config.example.js js/config.js
+```text
+wayfarer-ai/
+├── index.html
+├── styles.css
+├── theme-init.js
+├── js/
+│   ├── app.js
+│   ├── config.js                 # Local placeholders; ignored by Git
+│   ├── config.example.js
+│   ├── firebase.js
+│   ├── store.js
+│   ├── providers.js              # Live public + Amadeus provider client
+│   ├── agent37Adapter.js         # Documented Personal bridge boundary
+│   ├── agent37Tools.js           # Strict allowlist + validation
+│   └── storage.js                # Optional signed private uploads
+├── workers/travel-api/
+│   ├── src/index.js              # Firebase token verification + Amadeus Production proxy
+│   ├── wrangler.toml
+│   └── .dev.vars.example
+├── functions/                    # Optional Supabase signed-URL function
+├── firestore.rules
+├── firestore.indexes.json
+├── firebase.json
+└── START-HERE.md
 ```
 
-`js/config.js` is ignored by Git. The included default file has only placeholders and demo settings. Never commit real secrets.
+## Security notes
 
-### Firebase Authentication and Firestore
+- Amadeus API credentials belong in Cloudflare Worker secrets, never in `js/config.js`.
+- Supabase service-role key belongs only in Firebase Secret Manager, never in browser code.
+- Firestore rules scope private records to `users/{uid}`.
+- The Worker verifies Firebase ID tokens before serving travel-provider requests.
+- The Agent37 bridge must be HTTPS and operated by you or a trusted provider. Only configure a documented Personal integration.
+- No AI write operation is applied until the user approves the proposed action.
 
-1. Create a Firebase project.
-2. Register a Web App in Firebase Project Settings.
-3. Enable Email/Password authentication. Enable Google authentication only if you want Google sign-in.
-4. Create a Firestore database.
-5. Copy the web app's public Firebase configuration values into `js/config.js` under `firebase`.
-6. Set `demoMode` to `false` after Firebase is configured.
-7. Deploy the security rules and indexes:
+## Known limitations
 
-```bash
-npm install -g firebase-tools
-firebase login
-cp .firebaserc.example .firebaserc
-# Edit .firebaserc and set your Firebase project ID
-firebase deploy --only firestore:rules,firestore:indexes
-```
-
-The application stores each signed-in user's records under `users/{uid}/{collection}/{docId}`. The rules restrict access to the matching authenticated UID. The local browser copy is used as a demo/offline cache; configure and test your Firebase project before relying on cloud persistence.
-
-To deploy Hosting:
-
-```bash
-firebase deploy --only hosting
-```
-
-### Agent37 Personal integration
-
-This project follows the Hackyard instruction to use **Agent37 Personal**, not the Agent37 Cloud API page. Start at <https://agent37.com/personal> and use the Personal flow provided for the challenge.
-
-The public Agent37 Personal page describes a hosted personal agent and its own computer/workspace. The public Agent37 Cloud page is a separate API product. The Agent37 Cloud Starter Kit also documents a Cloud-specific API key and instance data-plane endpoints; this project does not use that Cloud flow.
-
-**Important limitation:** the Personal instance ID is an identifier. The public information available for this build does not establish a supported browser-embeddable chat endpoint or a complete Personal API contract. Therefore this code does not guess an endpoint, does not call `api.agent37.com`, and does not claim that an instance ID is sufficient to connect a web chat.
-
-`js/agent37Adapter.js` is the single adapter boundary. To connect it:
-
-1. Confirm the actual supported Personal integration method in your Agent37 Personal dashboard or from Agent37 support.
-2. If the supported method requires a secure application bridge, deploy a bridge you control. It must authenticate the request and safely forward it to the documented Personal interface.
-3. Configure `agent37.enabled`, `agent37.instanceId` and `agent37.bridgeUrl` in `js/config.js`. Users must be signed in with Firebase; the frontend sends the Firebase ID token to the bridge for verification.
-4. The bridge contract expected by this frontend is:
-
-```json
-{
-  "instanceId": "your-personal-instance-id",
-  "message": "Plan a short trip to Jaipur",
-  "conversation": [],
-  "travellerProfile": {},
-  "currentTrip": null,
-  "availableTools": ["search_destinations", "search_flights", "search_hotels", "build_itinerary", "estimate_trip_cost"],
-  "product": "WAYFARER AI"
-}
-```
-
-Expected response:
-
-```json
-{
-  "reply": "The agent's response text",
-  "actions": [
-    {
-      "name": "create_trip",
-      "arguments": { "destination": "Jaipur, India", "budget": 25000, "travelers": 2 }
-    }
-  ]
-}
-```
-
-The frontend recognizes a small allowlist of write proposals: `create_trip`, `extend_trip`, `optimize_budget`, `create_packing_checklist`, `simulate_disruption`, `create_demo_booking` and `request_booking_cancellation`. Read-only capability names are supplied to the agent for planning, but the bridge must not treat this list as permission to access user data without checking the authenticated Firebase UID. Unknown tool names or malformed arguments are ignored. The frontend creates a preview and requires the user's approval before applying any supported mutation.
-
-This is **WAYFARER's bridge contract**, not a claim that Agent37 Personal natively exposes these exact request/response shapes. The bridge must be configured only after you confirm a supported Personal connection. Keep any private credentials on the bridge server. Never place a Cloud API key, access token or private credential in `js/config.js`.
-
-Until a successful bridge response is received, planner responses are visibly labelled as built-in demo planner responses.
-
-Official reference pages:
-
-- Agent37 Personal: <https://www.agent37.com/personal>
-- Agent37 Cloud (separate product; not used by this build): <https://www.agent37.com/cloud>
-- Agent37 Cloud Starter Kit (Cloud-specific): <https://github.com/agent37-platform/starter-kit>
-
-### Supabase Storage (files only)
-
-Supabase is used only for private file storage. Authentication and app data remain in Firebase.
-
-1. Create a Supabase project and a **private** Storage bucket, for example `wayfarer-private`.
-2. Do not enable public access on the bucket.
-3. Set up Firebase Functions dependencies:
-
-```bash
-cd functions
-npm install
-cd ..
-```
-
-4. Set the Supabase URL and bucket as Firebase Function parameters when prompted during deploy. Set the service-role key as a Firebase Secret:
-
-```bash
-firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY
-```
-
-5. Configure `APP_ORIGIN` to your exact Firebase Hosting origin. The default is `http://localhost:8080` for local testing; change it for deployment.
-6. Deploy the signing function:
-
-```bash
-firebase deploy --only functions:storageSign
-```
-
-7. Add the deployed `storageSign` function URL, Supabase project URL, bucket name and Supabase anon key to `js/config.js` under `storage`.
-
-The browser sends its Firebase ID token to the signing function. The function verifies the token and creates short-lived Supabase signed upload/download URLs. The Supabase service-role key never reaches the browser. Uploads are restricted to PDF/JPEG/PNG/WebP and 10 MB. Paths are forced under `uploads/{firebaseUid}/`.
-
-For production, add stronger per-file lifecycle handling, malware scanning, retention controls and audit monitoring. Verify CORS and bucket policy settings in your own project before allowing user uploads.
-
-## 4. Demo flow (about 3 minutes)
-
-1. Open the dashboard and point out the sample upcoming trip. Explain that sample trip details are demo data.
-2. Open **Trip Planner** and use the suggestion “A Goa escape”. Show the planner's personalized context and the visible demo-mode disclosure.
-3. Open **AI Workspace** and run: `Extend my Goa trip by two days and recalculate the budget.` Review the plan and before/after panel. Reject it, then run it again and confirm so the history demonstrates the approval gate.
-4. Open **Stays** or **Flights**, inspect a sample option and prepare a demo booking. Confirm the booking only after reviewing the demo warning.
-5. Open **My Trips** and **Bookings & Vouchers** to show the updated trip and demo booking reference.
-6. Open **AI History** to show the request, plan, status and recorded result.
-7. Open **Settings** and explain which integrations are configured and which remain demo-only.
-
-## 5. Feature-to-judging-criteria mapping
-
-| Judging area | Demonstration in this prototype |
-|---|---|
-| Personalization | Traveller profile, editable preferences, contextual planner and recommendation reasons |
-| Intelligent automation | AI Workspace task intent parsing, action plans, allowlisted operations and task results |
-| Orchestration | Trip creation, itinerary changes, sample inventory comparisons, cost summaries and booking records |
-| Price validation | Demo catalogue validation with explicit non-live disclosure; provider interface ready for live adapters |
-| Reliability | Input validation, error states, ownership rules, explicit approval and action history |
-| User experience | Responsive editorial UI, theme modes, contextual help, concise workflows and itinerary views |
-| Full travel lifecycle | Planning, trips, simulated reservations, voucher/document records and disruption/cancellation demo paths |
-| Agent37 | Personal adapter boundary with honest unconfigured/bridge status; no false connection claims |
-
-## 6. Important architecture boundaries
-
-- `js/providers.js`: simulated travel providers. Replace these interfaces with real provider adapters only after obtaining legitimate API access and handling each provider's terms.
-- `js/agent37Adapter.js`: single boundary for the Agent37 Personal bridge. No unsupported endpoint is hardcoded.
-- `js/agent37Tools.js`: schema-limited action allowlist for proposals returned by the configured bridge.
-- `js/storage.js` + `functions/index.js`: private Supabase Storage using Firebase-verified signed URLs.
-- `js/store.js` + `js/firebase.js`: local demo cache and optional Firebase cloud persistence.
-- `firestore.rules`: per-user Firestore access restriction.
-
-## 7. Before production use
-
-This project is a hackathon prototype, not a production travel-booking operator. Before processing real trips or payments, implement and test live provider integrations, booking idempotency, payment processing, cancellation policy retrieval, legal terms, privacy disclosures, support escalation, robust logging, monitoring, rate limits and comprehensive security testing. Never treat a simulated quote as a confirmed supplier price or a demo reservation as a real booking.
+This is a hackathon prototype, not a production OTA. Amadeus Production access is needed for real-time flight/hotel/activity supplier inventory. Some searches may return no results depending on the supplier and requested route/date. Actual supplier bookings/payments/cancellations/rebooking, airline disruption feeds, transfers, group voting, and a verified Agent37 Personal external web-chat connection are not delivered by this version. They must not be represented as functional until corresponding live integrations are connected and tested.

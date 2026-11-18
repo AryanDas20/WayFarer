@@ -31,8 +31,13 @@ export async function initFirebase() {
 
 export function firebaseStatus() { return { enabled: !!(auth && db), auth, db, modules }; }
 
+export async function getFirebaseIdToken() {
+  if (!auth?.currentUser) throw new Error('Sign in with your WAYFARER account before searching live flights, hotels or activities.');
+  return auth.currentUser.getIdToken();
+}
+
 export async function signInEmail(email, password) {
-  if (!auth || !modules) throw new Error('Firebase is not configured. Use Explore as guest in demo mode.');
+  if (!auth || !modules) throw new Error('Firebase is not configured. Add your Firebase web app settings in js/config.js first.');
   return modules.signInWithEmailAndPassword(auth, email, password);
 }
 export async function signUpEmail(email, password) {

@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "node dev-server.mjs",
-    "check": "node --check js/app.js && node --check js/store.js && node --check js/firebase.js && node --check js/agent37Adapter.js && node --check js/providers.js"
+    "check": "node --check js/app.js && node --check js/store.js && node --check js/firebase.js && node --check js/agent37Adapter.js && node --check js/agent37Tools.js && node --check js/providers.js && node --check workers/travel-api/src/index.js && node scripts/verify-project.mjs"
   }
 }

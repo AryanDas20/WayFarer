@@ -1,13 +1,52 @@
 {
   "hosting": {
     "public": ".",
-    "ignore": ["firebase.json", "firestore.rules", "firestore.indexes.json", "functions/**", "README.md", "package.json", "package-lock.json", "node_modules/**", ".git/**", "dev-server.mjs", "*.zip"],
+    "ignore": [
+      "firebase.json",
+      "firestore.rules",
+      "firestore.indexes.json",
+      "functions/**",
+      "README.md",
+      "package.json",
+      "package-lock.json",
+      "node_modules/**",
+      ".git/**",
+      "dev-server.mjs",
+      "*.zip",
+      "workers/**",
+      ".firebaserc*",
+      "START-HERE.md"
+    ],
     "headers": [
-      { "source": "**/*.js", "headers": [{ "key": "Cache-Control", "value": "public,max-age=300" }] },
-      { "source": "service-worker.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+      {
+        "source": "**/*.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public,max-age=300"
+          }
+        ]
+      },
+      {
+        "source": "service-worker.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
     ]
   },
-  "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" },
-  "functions": [{ "source": "functions", "codebase": "default", "runtime": "nodejs20" }
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "nodejs22"
+    }
   ]
 }
