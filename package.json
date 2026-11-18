@@ -1,0 +1,10 @@
+{
+  "name": "wayfarer-ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "check": "node --check js/app.js && node --check js/store.js && node --check js/firebase.js && node --check js/agent37Adapter.js && node --check js/providers.js"
+  }
+}

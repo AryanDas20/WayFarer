@@ -1,0 +1,9 @@
+{
+  "name": "WAYFARER AI — Travel, thoughtfully planned",
+  "short_name": "WAYFARER",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FAF8F3",
+  "theme_color": "#675647",
+  "description": "Your intelligent travel companion for planning, managing and understanding every journey."
+}

@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owns(uid) { return signedIn() && request.auth.uid == uid; }
+    function validDocument() { return request.resource.data.keys().size() <= 80; }
+
+    match /users/{uid} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid) && validDocument();
+      match /{collection}/{docId} {
+        allow read, delete: if owns(uid);
+        allow create, update: if owns(uid) && validDocument();
+        match /{nestedCollection}/{nestedDocId} {
+          allow read, delete: if owns(uid);
+          allow create, update: if owns(uid) && validDocument();
+        }
+      }
+    }
+
+    // Read-only share records are intentionally public only while unexpired.
+    // Create/update/delete remain restricted to authenticated backend workflows.
+    match /shares/{shareToken} {
+      allow read: if resource.data.expiresAt is timestamp && resource.data.expiresAt > request.time;
+      allow write: if false;
+    }
+
+    // No client access to any other top-level collection.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

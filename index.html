@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FAF8F3">
+  <meta name="description" content="WAYFARER AI — an intelligent travel companion for planning, booking and managing every journey.">
+  <title>WAYFARER AI — Travel, thoughtfully planned</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <script src="./theme-init.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+      <a class="brand" href="#dashboard" data-route="dashboard" aria-label="WAYFARER AI home">
+        <span class="brand-mark">W</span><span class="brand-copy"><strong>WAYFARER</strong><small>TRAVEL, THOUGHTFULLY</small></span>
+      </a>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="side-nav">
+        <button class="nav-item active" data-route="dashboard"><span class="nav-icon">◫</span>Overview</button>
+        <button class="nav-item" data-route="explore"><span class="nav-icon">⌖</span>Explore destinations</button>
+        <button class="nav-item" data-route="planner"><span class="nav-icon">✳</span>Trip planner</button>
+        <button class="nav-item" data-route="workspace"><span class="nav-icon">✣</span>AI Workspace <span class="nav-new">NEW</span></button>
+        <button class="nav-item" data-route="trips"><span class="nav-icon">▤</span>My trips</button>
+      </nav>
+      <div class="side-label">DISCOVER & MANAGE</div>
+      <nav class="side-nav">
+        <button class="nav-item" data-route="flights"><span class="nav-icon">✈</span>Flights</button>
+        <button class="nav-item" data-route="hotels"><span class="nav-icon">⌂</span>Stays</button>
+        <button class="nav-item" data-route="experiences"><span class="nav-icon">◇</span>Experiences</button>
+        <button class="nav-item" data-route="budget"><span class="nav-icon">◎</span>Budget planner</button>
+        <button class="nav-item" data-route="bookings"><span class="nav-icon">▣</span>Bookings & vouchers</button>
+        <button class="nav-item" data-route="history"><span class="nav-icon">◷</span>AI history</button>
+      </nav>
+      <div class="side-label">YOUR SPACE</div>
+      <nav class="side-nav">
+        <button class="nav-item" data-route="wishlist"><span class="nav-icon">♡</span>Wishlist</button>
+        <button class="nav-item" data-route="support"><span class="nav-icon">☏</span>Travel support</button>
+        <button class="nav-item" data-route="settings"><span class="nav-icon">⚙</span>Settings</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="agent-mini"><span class="status-dot" id="agentDot"></span><div><strong>Agent connection</strong><small id="agentStatusMini">Demo planner active</small></div><span class="mini-spark">✳</span></div>
+        <button class="profile-mini" data-route="settings"><span class="avatar" id="sideAvatar">G</span><span><strong id="sideUserName">Guest Traveller</strong><small id="sideUserEmail">Demo account</small></span><span class="chevron">⌄</span></button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button class="icon-btn mobile-menu" id="mobileMenu" aria-label="Open navigation">☰</button>
+        <div class="breadcrumb"><span>WAYFARER</span><i>/</i><strong id="breadcrumbCurrent">Overview</strong></div>
+        <div class="top-actions">
+          <label class="global-search"><span>⌕</span><input id="globalSearch" type="search" placeholder="Search destinations, trips..." aria-label="Search website"><kbd>⌘ K</kbd></label>
+          <button class="icon-btn" id="notificationBtn" aria-label="Notifications">♧<span class="notification-dot"></span></button>
+          <button class="icon-btn" id="themeToggle" aria-label="Toggle theme">☼</button>
+          <button class="top-avatar" data-route="settings" id="topAvatar">G</button>
+        </div>
+      </header>
+
+      <div class="content-wrap" id="pageContent" tabindex="-1"></div>
+    </main>
+  </div>
+
+  <button class="floating-assistant" id="helpAssistant" aria-label="Open website guide"><span class="assistant-orb">✳</span><span><strong>Need a hand?</strong><small>Ask your travel guide</small></span></button>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+  <dialog class="modal" id="modal">
+    <div class="modal-head"><div><p class="eyebrow" id="modalEyebrow">WAYFARER AI</p><h2 id="modalTitle">Review your changes</h2></div><button class="icon-btn" id="modalClose" aria-label="Close dialog">×</button></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </dialog>
+
+  <section class="chat-drawer" id="helpDrawer" aria-label="Website guide" aria-hidden="true">
+    <div class="drawer-head"><div class="assistant-avatar">✳</div><div><strong>WAYFARER Guide</strong><small><span class="status-dot"></span> Website help · Agent37 when connected</small></div><button class="icon-btn" id="closeHelp" aria-label="Close guide">×</button></div>
+    <div class="drawer-context">Ask how to use the website, find a feature or get help with your trip.</div>
+    <div class="chat-messages" id="helpMessages"><div class="chat-bubble assistant">Hello! I'm your WAYFARER website guide. Ask me where to find something or how a feature works.</div></div>
+    <div class="chat-suggestions"><button data-help="How do I create a trip?">Create a trip</button><button data-help="Where are my vouchers?">Find vouchers</button><button data-help="How does AI Workspace work?">AI Workspace</button></div>
+    <form class="chat-compose" id="helpForm"><input id="helpInput" placeholder="Ask about WAYFARER..." autocomplete="off" aria-label="Message website guide"><button type="submit" aria-label="Send message">↑</button></form>
+  </section>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

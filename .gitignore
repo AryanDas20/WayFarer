@@ -1,0 +1,16 @@
+# Local configuration
+js/config.js
+.firebaserc
+functions/.env
+functions/.env.*
+!functions/.env.example
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+functions/node_modules/
+.DS_Store
+*.log
+*.zip
