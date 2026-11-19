@@ -14,8 +14,6 @@ let currentRoute = 'dashboard';
 let profile = null;
 let firebaseReady = false;
 let livePlaces = [];
-let catalogRows = [];
-let catalogKind = '';
 let helpMessages = [];
 let plannerMessages = [];
 let pendingTask = null;
@@ -91,7 +89,7 @@ async function renderDashboard() {
   const currentTrips = trips.filter(t => !['cancelled','completed'].includes(t.status));
   const budgetTotal = currentTrips.reduce((sum, trip) => sum + Number(trip.budget || 0), 0);
   const ag = agent37ConnectionStatus();
-  content.innerHTML = `<section class="dash-hero"><div><p class="eyebrow">YOUR TRAVEL COMMAND CENTRE</p><h2>Travel a little more<br>like you mean it.</h2><p>Real supplier information where connected. Your own plans and documents, organised in one calm workspace.</p><div class="hero-actions"><button class="btn btn-tan" data-route="planner">✳ Plan a journey</button><button class="btn" style="border:1px solid rgba(255,255,255,.5);color:#fff;background:transparent" data-route="explore">Find a destination ↗</button></div></div><div class="hero-visual"><div class="hero-globe">⌖</div></div></section>
+  content.innerHTML = `<section class="dash-hero"><div><p class="eyebrow">YOUR TRAVEL COMMAND CENTRE</p><h2>Travel a little more<br>like you mean it.</h2><p>Live public destination and weather information, external travel search links, and your own plans in one calm workspace.</p><div class="hero-actions"><button class="btn btn-tan" data-route="planner">✳ Plan a journey</button><button class="btn" style="border:1px solid rgba(255,255,255,.5);color:#fff;background:transparent" data-route="explore">Find a destination ↗</button></div></div><div class="hero-visual"><div class="hero-globe">⌖</div></div></section>
     <div class="grid grid-4">
       <div class="card stat-card"><span class="stat-icon">▤</span><div><small>Your trips</small><strong>${trips.length}</strong></div></div>
       <div class="card stat-card"><span class="stat-icon">✳</span><div><small>Completed AI tasks</small><strong>${tasks.filter(t=>t.status==='completed').length}</strong></div></div>
@@ -100,9 +98,9 @@ async function renderDashboard() {
     </div>
     <div class="section-head"><div><h2>Your journeys</h2><p>Only trips you have created or saved are shown here.</p></div><button class="btn btn-outline btn-small" data-route="trips">View trips ↗</button></div>
     ${currentTrips.length ? `<div class="grid">${currentTrips.slice(0,3).map(tripCard).join('')}</div>` : emptyState('⌖','No trips saved yet','Create a trip with your own dates and destination. The app will not prefill sample itineraries.','<button class="btn btn-primary" data-action="new-trip">Create a trip</button>')}
-    <div class="section-head"><div><h2>Live travel providers</h2><p>Search only when you are ready. Results are fetched from configured sources.</p></div></div>
-    <div class="grid grid-3"><button class="quick-link" data-route="flights"><div><strong>Search flights</strong><small>Live supplier offers require production API access.</small></div><span>✈</span></button><button class="quick-link" data-route="hotels"><div><strong>Search stays</strong><small>Live hotel availability and prices.</small></div><span>⌂</span></button><button class="quick-link" data-route="experiences"><div><strong>Find experiences</strong><small>Real activity listings and supplier links.</small></div><span>◇</span></button></div>
-    <div class="grid grid-2" style="margin-top:16px"><div class="card"><p class="eyebrow">AGENT STATUS</p><h3>${ag.connected ? 'Agent bridge configured' : 'Agent37 not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p><button class="btn btn-outline btn-small" data-route="settings">Integration settings ↗</button></div><div class="card"><p class="eyebrow">DATA POLICY</p><h3>No invented travel results</h3><p class="card-sub">If a live provider is unavailable or not configured, WAYFARER shows an empty state and tells you why.</p></div></div>`;
+    <div class="section-head"><div><h2>Travel search partners</h2><p>Open external providers to check current prices and availability.</p></div></div>
+    <div class="grid grid-3"><button class="quick-link" data-route="flights"><div><strong>Search flights</strong><small>Opens external flight search providers.</small></div><span>✈</span></button><button class="quick-link" data-route="hotels"><div><strong>Search stays</strong><small>Compare stays on external provider sites.</small></div><span>⌂</span></button><button class="quick-link" data-route="experiences"><div><strong>Find experiences</strong><small>Find activities on external search sites.</small></div><span>◇</span></button></div>
+    <div class="grid grid-2" style="margin-top:16px"><div class="card"><p class="eyebrow">AGENT STATUS</p><h3>${ag.connected ? 'Agent bridge configured' : 'Agent37 not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p><button class="btn btn-outline btn-small" data-route="settings">Integration settings ↗</button></div><div class="card"><p class="eyebrow">DATA POLICY</p><h3>No invented travel results</h3><p class="card-sub">WAYFARER never invents fares or hotel prices. External providers show their own live availability and final terms.</p></div></div>`;
 }
 function tripCard(trip) {
   return `<article class="card trip-card"><div class="trip-cover"></div><div class="trip-data"><span class="pill">${escapeHTML(trip.status || 'draft')}</span><h3>${escapeHTML(trip.title || trip.destination)}</h3><p>${escapeHTML(trip.destination)} · ${dateFmt(trip.startDate)} — ${dateFmt(trip.endDate)}</p><div class="trip-stats"><span>♙ ${Number(trip.travellers || 1)} travellers</span><span>◎ Budget ${trip.budget ? money(trip.budget) : 'not set'}</span><span>◷ ${trip.days?.length || 0} itinerary days</span></div></div><button class="btn btn-primary btn-small" data-open-trip="${escapeHTML(trip.id)}">Open trip ↗</button></article>`;
@@ -131,11 +129,11 @@ async function renderPlanner() {
   const status = agent37ConnectionStatus();
   content.innerHTML = `${pageHead('CONVERSATIONAL TRIP PLANNER','Start with what matters.','Talk naturally about your trip. The Agent37 connection is used only when an actual supported bridge is configured.')}
   <div class="chat-layout"><section class="card chat-panel"><div class="chat-panel-head"><div class="assistant-avatar">✳</div><div><h3>Travel Concierge</h3><small>${status.connected ? 'Agent37 bridge configured · connection verified on request' : 'Agent37 Personal not connected to this website'}</small></div>${statusPill(status.connected ? 'BRIDGE CONFIGURED' : 'NOT CONNECTED', false)}</div>
-  <div class="chat-scroll" id="plannerMessages">${plannerMessages.map(m=>`<div class="chat-bubble ${m.role}">${escapeHTML(m.text)}</div>`).join('') || `<div class="chat-bubble assistant">I can help organise travel details once Agent37 Personal is connected. You can already search live city data, flights, hotels and activities from the navigation.</div>`}</div>
+  <div class="chat-scroll" id="plannerMessages">${plannerMessages.map(m=>`<div class="chat-bubble ${m.role}">${escapeHTML(m.text)}</div>`).join('') || `<div class="chat-bubble assistant">I can help organise travel details. You can search live city data and weather, then open external websites to compare flights, stays and activities.</div>`}</div>
   <div class="suggestions"><button data-planner-prompt="What information do you need to plan a trip for me?">What do you need?</button><button data-planner-prompt="Help me compare live flight and hotel options.">Compare travel options</button><button data-planner-prompt="Explain how to save a trip in WAYFARER AI.">How do I save a trip?</button></div>
   <form class="chat-compose" id="plannerForm"><button class="icon-btn" id="plannerVoice" type="button" aria-label="Use voice input">⌁</button><input id="plannerInput" placeholder="Ask your travel concierge…" autocomplete="off"><button type="submit" aria-label="Send message">↑</button></form></section>
   <aside class="grid"><div class="card"><p class="eyebrow">YOUR TRAVEL PROFILE</p><h3>Personal travel preferences</h3><p class="card-sub">Only preferences you provide are stored.</p><div class="divider"></div><div class="budget-row"><span>Home city / airport</span><strong>${escapeHTML(profile?.homeAirport || 'Not provided')}</strong></div><div class="budget-row"><span>Currency</span><strong>${escapeHTML(profile?.currency || 'INR')}</strong></div><div class="budget-row"><span>Interests</span><strong>${escapeHTML((profile?.interests || []).join(', ') || 'Not provided')}</strong></div><button class="btn btn-outline btn-small" style="margin-top:12px" data-route="settings">Edit profile ↗</button></div>
-  <div class="card"><p class="eyebrow">TRAVEL DATA</p><h3>Source transparency</h3><p class="card-sub">Live offers from the configured production provider. Weather and exchange reference data use public live services. No demo flights or hotels are shown.</p></div></aside></div>`;
+  <div class="card"><p class="eyebrow">TRAVEL DATA</p><h3>Source transparency</h3><p class="card-sub">City and weather information use public data services. Flights, stays and activities open external travel search websites; this app does not show made-up offers or prices.</p></div></aside></div>`;
   $('#plannerForm').addEventListener('submit', async e => { e.preventDefault(); await sendAgentMessage($('#plannerInput').value, 'planner'); });
   $('#plannerVoice').addEventListener('click', () => startVoiceInput($('#plannerInput')));
 }
@@ -273,53 +271,56 @@ function downloadTripCalendar(trip) {
 }
 
 async function renderCatalog(kind) {
-  catalogKind = kind; catalogRows = [];
-  const title = kind === 'flights' ? ['LIVE FLIGHT SEARCH','Find a route. Compare live offers.','Search current supplier offers. A route must be searched with real dates and airports.'] : kind === 'hotels' ? ['LIVE HOTEL SEARCH','Find a place to stay.','Search supplier hotel inventory for a city and exact dates.'] : ['LIVE EXPERIENCES','Discover real things to do.','Search tours and activities listed by the configured live travel provider.'];
+  const title = kind === 'flights'
+    ? ['FLIGHT SEARCH','Compare routes on trusted travel sites.','WAYFARER prepares your search and opens an external travel provider. Prices and availability are shown by that provider, not inside this app.']
+    : kind === 'hotels'
+      ? ['STAY SEARCH','Find a place to stay.','Search external hotel providers with your destination, dates and traveller count. Check the final price and cancellation terms on the provider website.']
+      : ['EXPERIENCE SEARCH','Find things to do at your destination.','Explore activities on external websites. WAYFARER does not claim these listings or prices are verified.'];
   let fields = '';
-  if (kind === 'flights') fields = `<div class="form-grid"><div class="field"><label for="flightOrigin">From city / airport / IATA</label><input class="input" id="flightOrigin" required placeholder="e.g. Delhi or DEL"></div><div class="field"><label for="flightDestination">To city / airport / IATA</label><input class="input" id="flightDestination" required placeholder="e.g. Mumbai or BOM"></div><div class="field"><label for="flightDepart">Departure</label><input class="input" type="date" id="flightDepart" required></div><div class="field"><label for="flightReturn">Return (optional)</label><input class="input" type="date" id="flightReturn"></div><div class="field"><label for="flightAdults">Adults</label><input class="input" type="number" id="flightAdults" min="1" max="9" value="1"></div><div class="field"><label for="flightCurrency">Currency</label><select class="select" id="flightCurrency"><option>INR</option><option>USD</option><option>EUR</option></select></div></div>`;
-  if (kind === 'hotels') fields = `<div class="form-grid"><div class="field"><label for="hotelCity">City</label><input class="input" id="hotelCity" required placeholder="City name or IATA code"></div><div class="field"><label for="hotelCheckin">Check-in</label><input class="input" type="date" id="hotelCheckin" required></div><div class="field"><label for="hotelCheckout">Check-out</label><input class="input" type="date" id="hotelCheckout" required></div><div class="field"><label for="hotelAdults">Adults</label><input class="input" type="number" id="hotelAdults" min="1" max="9" value="1"></div><div class="field"><label for="hotelCurrency">Currency</label><select class="select" id="hotelCurrency"><option>INR</option><option>USD</option><option>EUR</option></select></div></div>`;
-  if (kind === 'experiences') fields = `<div class="form-grid"><div class="field"><label for="activityCity">City or destination</label><input class="input" id="activityCity" required placeholder="Enter a city name"></div><div class="field"><label for="activityRadius">Search radius (km)</label><input class="input" type="number" id="activityRadius" min="1" max="20" value="5"></div></div>`;
-  content.innerHTML = `${pageHead(...title)}${explainer('Live supplier data only','Searches use Amadeus production. If production credentials are missing, expired or unavailable, the page will show the provider error and no simulated inventory.')}
-  <form class="card" id="providerSearchForm" style="margin-bottom:14px">${fields}<button class="btn btn-primary" type="submit" style="margin-top:14px">Search live ${kind} ↗</button></form><div id="catalogList">${emptyState('⌕','Ready to search','Enter your details above. No example options or placeholder prices are loaded.')}</div>`;
-  $('#providerSearchForm').addEventListener('submit', async e => {
-    e.preventDefault(); await runCatalogSearch(kind);
-  });
+  if (kind === 'flights') fields = `<div class="form-grid"><div class="field"><label for="flightOrigin">From city / airport</label><input class="input" id="flightOrigin" required maxlength="80" placeholder="e.g. Delhi or DEL"></div><div class="field"><label for="flightDestination">To city / airport</label><input class="input" id="flightDestination" required maxlength="80" placeholder="e.g. Mumbai or BOM"></div><div class="field"><label for="flightDepart">Departure</label><input class="input" type="date" id="flightDepart" required></div><div class="field"><label for="flightReturn">Return (optional)</label><input class="input" type="date" id="flightReturn"></div><div class="field"><label for="flightAdults">Adults</label><input class="input" type="number" id="flightAdults" min="1" max="9" value="1" required></div></div>`;
+  if (kind === 'hotels') fields = `<div class="form-grid"><div class="field"><label for="hotelCity">City or destination</label><input class="input" id="hotelCity" required maxlength="80" placeholder="e.g. Jaipur"></div><div class="field"><label for="hotelCheckin">Check-in</label><input class="input" type="date" id="hotelCheckin" required></div><div class="field"><label for="hotelCheckout">Check-out</label><input class="input" type="date" id="hotelCheckout" required></div><div class="field"><label for="hotelAdults">Adults</label><input class="input" type="number" id="hotelAdults" min="1" max="9" value="1" required></div></div>`;
+  if (kind === 'experiences') fields = `<div class="form-grid"><div class="field"><label for="activityCity">City or destination</label><input class="input" id="activityCity" required maxlength="80" placeholder="e.g. Manali"></div><div class="field"><label for="activityType">What interests you?</label><select class="select" id="activityType"><option value="things to do">All experiences</option><option>adventure activities</option><option>guided tours</option><option>food experiences</option><option>museum and culture tours</option><option>family activities</option></select></div></div>`;
+  content.innerHTML = `${pageHead(...title)}${explainer('How this search works','This free version does not have a connected airline or hotel inventory API. It builds useful search links to external providers. Open a provider to see its current availability, prices, taxes and policies. No fake offers or prices are generated.')}<form class="card" id="providerSearchForm" style="margin-bottom:14px">${fields}<button class="btn btn-primary" type="submit" style="margin-top:14px">Open travel search ↗</button></form><div id="catalogList">${emptyState('⌕','Ready to search','Enter your details above. Your search will open on an external travel website.')}</div>`;
+  $('#providerSearchForm').addEventListener('submit', async e => { e.preventDefault(); runCatalogSearch(kind); });
   const minDate = new Date().toISOString().slice(0,10);
   content.querySelectorAll('input[type="date"]').forEach(input => { input.min = minDate; });
 }
-async function runCatalogSearch(kind) {
-  const list = $('#catalogList'); list.innerHTML = `<div class="card">Contacting live travel supplier…</div>`;
-  try {
-    if (kind === 'flights') {
-      catalogRows = await TravelProvider.searchFlights({ origin: $('#flightOrigin').value, destination: $('#flightDestination').value, departureDate: $('#flightDepart').value, returnDate: $('#flightReturn').value, adults: Number($('#flightAdults').value), currency: $('#flightCurrency').value });
-    } else if (kind === 'hotels') {
-      catalogRows = await TravelProvider.searchHotels({ city: $('#hotelCity').value, checkInDate: $('#hotelCheckin').value, checkOutDate: $('#hotelCheckout').value, adults: Number($('#hotelAdults').value), currency: $('#hotelCurrency').value });
-    } else {
-      catalogRows = await TravelProvider.searchActivities({ city: $('#activityCity').value, radius: Number($('#activityRadius').value) });
-    }
-    list.innerHTML = catalogRows.length ? `<div class="section-head"><div><h2>${catalogRows.length} live options</h2><p>Retrieved ${new Date().toLocaleString('en-IN')} · supplier response</p></div>${statusPill('LIVE PROVIDER DATA', true)}</div><div class="grid">${catalogRows.map((row, index) => catalogCard(row, kind, index)).join('')}</div>` : emptyState('⌕','No offers returned','The live provider returned no matching offers for these inputs. Try different dates, location or search parameters.');
-  } catch (error) { catalogRows = []; list.innerHTML = emptyState('!','Live search failed',escapeHTML(error.message)); }
+
+function externalSearchCard(title, description, url, provider) {
+  return `<article class="card catalog-card"><div><span class="pill">EXTERNAL PROVIDER</span><h4>${escapeHTML(title)}</h4><p>${escapeHTML(description)}</p><small class="muted">Prices, availability and policies are controlled by ${escapeHTML(provider)}.</small></div><div class="right"><a class="btn btn-primary btn-small" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">Open search ↗</a></div></article>`;
 }
-function catalogCard(row, kind, index) {
-  let heading = '', sub = '', price = '', detail = '';
-  if (kind === 'flights') { heading = row.airline; sub = `${row.route} · ${row.depart ? new Date(row.depart).toLocaleString('en-IN') : ''} – ${row.arrive ? new Date(row.arrive).toLocaleString('en-IN') : ''} · ${row.duration} · ${row.stops}`; price = money(row.price, row.currency); detail = 'Supplier offer amount'; }
-  if (kind === 'hotels') { heading = row.name; sub = [row.area, row.type, row.rating ? `Rating ${row.rating}` : 'No rating supplied'].filter(Boolean).join(' · '); price = money(row.price, row.currency); detail = 'Total offer price for the selected stay'; }
-  if (kind === 'experiences') { heading = row.name; sub = row.description || row.duration; price = row.price ? money(row.price, row.currency) : 'Price not supplied'; detail = row.rating ? `Rating ${row.rating}` : 'No rating supplied'; }
-  return `<article class="card catalog-card"><div><span class="pill">LIVE</span><h4>${escapeHTML(heading)}</h4><p>${escapeHTML(sub)}</p><small class="muted">${escapeHTML(detail)} · ${escapeHTML(row.source)}</small></div><div class="right"><div class="catalog-price">${escapeHTML(price)}</div><button class="btn btn-outline btn-small" style="margin-top:7px" data-option-detail="${index}" data-kind="${kind}">Details</button></div></article>`;
-}
-async function showOptionDetail(index, kind) {
-  const item = catalogRows[Number(index)]; if (!item) return;
-  const title = kind === 'flights' ? item.airline : item.name;
-  const info = kind === 'flights' ? `${item.route}\n${item.depart}\n${item.arrive}\n${item.duration}\n${item.stops}` : kind === 'hotels' ? `${item.area}\n${item.type}\n${item.perk}` : item.description;
-  const bookingLink = kind === 'experiences' && item.bookingLink ? `<p><a href="${escapeHTML(item.bookingLink)}" target="_blank" rel="noopener noreferrer">Open supplier booking page ↗</a></p>` : '';
-  const actions = [{ label: 'Close', class: 'btn-primary', onClick: closeModal }];
-  if (kind === 'flights') actions.unshift({ label: 'Re-check live price', class: 'btn-outline', onClick: async () => { try { const check = await TravelProvider.validatePrice(item); showModal({ eyebrow: 'LIVE RE-PRICE', title: 'Supplier price response', body: `<p>${money(check.price, check.currency)}</p><p class="card-sub">${escapeHTML(check.source)} · ${new Date(check.retrievedAt).toLocaleString('en-IN')}</p>`, actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] }); } catch (error) { toast(error.message, 'error'); } } });
-  showModal({ eyebrow: `${kind.toUpperCase()} · LIVE SUPPLIER RESPONSE`, title, body: `<p style="white-space:pre-line">${escapeHTML(info)}</p><div class="approval-card"><p class="eyebrow">PRICE RETURNED BY PROVIDER</p><div class="approval-total">${escapeHTML(item.price ? money(item.price, item.currency) : 'Price not supplied')}</div><p class="card-sub">Source: ${escapeHTML(item.source)}. A search response is not a completed reservation or guarantee of continued availability.</p></div>${bookingLink}`, actions });
+
+function runCatalogSearch(kind) {
+  const list = $('#catalogList');
+  const today = new Date().toISOString().slice(0,10);
+  const results = [];
+  if (kind === 'flights') {
+    const origin = $('#flightOrigin').value.trim(); const destination = $('#flightDestination').value.trim();
+    const depart = $('#flightDepart').value; const ret = $('#flightReturn').value; const adults = Number($('#flightAdults').value);
+    if (!origin || !destination || !depart || depart < today || (ret && ret <= depart) || !Number.isInteger(adults) || adults < 1 || adults > 9) return toast('Check your cities, dates and traveller count.', 'error');
+    const query = `Flights from ${origin} to ${destination} on ${depart}${ret ? ` returning ${ret}` : ''} for ${adults} adult${adults === 1 ? '' : 's'}`;
+    results.push(externalSearchCard('Google Flights', query, `https://www.google.com/travel/flights?q=${encodeURIComponent(query)}`, 'Google Flights'));
+    results.push(externalSearchCard('Search flights on Skyscanner', query, `https://www.skyscanner.co.in/transport/flights/${encodeURIComponent(origin.toLowerCase())}/${encodeURIComponent(destination.toLowerCase())}/${depart.replaceAll('-','').slice(2)}${ret ? `/${ret.replaceAll('-','').slice(2)}` : ''}/?adultsv2=${adults}&currency=INR`, 'Skyscanner'));
+  } else if (kind === 'hotels') {
+    const city = $('#hotelCity').value.trim(); const checkin = $('#hotelCheckin').value; const checkout = $('#hotelCheckout').value; const adults = Number($('#hotelAdults').value);
+    if (!city || !checkin || !checkout || checkin < today || checkout <= checkin || !Number.isInteger(adults) || adults < 1 || adults > 9) return toast('Check the destination, stay dates and traveller count.', 'error');
+    const query = `Hotels in ${city} from ${checkin} to ${checkout} for ${adults} adults`;
+    const booking = new URL('https://www.booking.com/searchresults.html'); booking.search = new URLSearchParams({ ss: city, checkin, checkout, group_adults: String(adults), no_rooms: '1', group_children: '0' }).toString();
+    results.push(externalSearchCard('Google hotel search', query, `https://www.google.com/travel/search?q=${encodeURIComponent(query)}`, 'Google'));
+    results.push(externalSearchCard('Search on Booking.com', query, booking.href, 'Booking.com'));
+  } else {
+    const city = $('#activityCity').value.trim(); const type = $('#activityType').value;
+    if (!city) return toast('Enter a destination first.', 'error');
+    const query = `${type} in ${city}`;
+    results.push(externalSearchCard('Search experiences on Google', query, `https://www.google.com/search?q=${encodeURIComponent(query)}`, 'Google'));
+    results.push(externalSearchCard('Search activities on GetYourGuide', query, `https://www.getyourguide.com/s/?q=${encodeURIComponent(`${type} ${city}`)}`, 'GetYourGuide'));
+  }
+  list.innerHTML = `<div class="section-head"><div><h2>Choose a search provider</h2><p>Your search details have been added. Check final terms before booking.</p></div>${statusPill('EXTERNAL SEARCH', false)}</div><div class="grid">${results.join('')}</div><p class="card-sub" style="margin-top:12px">WAYFARER AI does not receive a live quote from these websites and cannot confirm, change or cancel reservations made there.</p>`;
 }
 
 async function renderBudget() {
   const trips = await listItems('trips'); const trip = trips.find(t => t.status !== 'cancelled') || trips[0];
-  if (!trip) { content.innerHTML = `${pageHead('TRAVEL COST CLARITY','Know what is confirmed.','Budget values come only from details you enter or supplier offers retrieved live.')}${emptyState('◎','No trip to review','Create a trip and record real costs to see a budget summary.','<button class="btn btn-primary" data-action="new-trip">Create a trip</button>')}`; return; }
+  if (!trip) { content.innerHTML = `${pageHead('TRAVEL COST CLARITY','Know what is confirmed.','Budget values come from costs and estimates that you enter yourself.')}${emptyState('◎','No trip to review','Create a trip and record real costs to see a budget summary.','<button class="btn btn-primary" data-action="new-trip">Create a trip</button>')}`; return; }
   const costs = (trip.costs || []).filter(c => Number.isFinite(Number(c.amount)));
   const total = costs.reduce((sum, c) => sum + Number(c.amount), 0);
   content.innerHTML = `${pageHead('TRAVEL COST CLARITY','Your real trip costs.','This view totals only costs recorded by you or returned by a travel provider.')}
@@ -361,11 +362,10 @@ async function renderSupport() {
 
 async function renderSettings() {
   const user = currentUser(); profile = await getProfile(); const fb = firebaseStatus(); const ag = agent37ConnectionStatus();
-  const travelConfigured = Boolean(CONFIG.travel?.apiEndpoint);
   content.innerHTML = `${pageHead('YOUR ACCOUNT & INTEGRATIONS','Set up your travel workspace.','Connect your own services. Private API secrets never belong in browser configuration.')}
   <div class="grid grid-2"><form class="card" id="profileForm"><p class="eyebrow">TRAVELLER PROFILE</p><h3>Your preferences</h3><div class="form-grid" style="margin-top:15px"><div class="field"><label for="profileName">Display name</label><input class="input" id="profileName" value="${escapeHTML(profile.name || user.displayName)}"></div><div class="field"><label for="profileHome">Home city / airport</label><input class="input" id="profileHome" value="${escapeHTML(profile.homeAirport || '')}" placeholder="Enter your own home city"></div><div class="field"><label for="profileCurrency">Preferred currency</label><select class="select" id="profileCurrency"><option value="INR" ${profile.currency === 'INR' ? 'selected' : ''}>INR</option><option value="USD" ${profile.currency === 'USD' ? 'selected' : ''}>USD</option><option value="EUR" ${profile.currency === 'EUR' ? 'selected' : ''}>EUR</option></select></div><div class="field"><label for="profilePace">Travel pace</label><select class="select" id="profilePace"><option ${profile.pace === 'Balanced' ? 'selected' : ''}>Balanced</option><option ${profile.pace === 'Slow and relaxed' ? 'selected' : ''}>Slow and relaxed</option><option ${profile.pace === 'See it all' ? 'selected' : ''}>See it all</option><option ${profile.pace === 'Adventure-led' ? 'selected' : ''}>Adventure-led</option></select></div></div><div class="field" style="margin-top:13px"><label for="profileInterests">Interests (comma separated)</label><input class="input" id="profileInterests" value="${escapeHTML((profile.interests || []).join(', '))}" placeholder="Enter your interests"></div><button class="btn btn-primary" style="margin-top:15px" type="submit">Save preferences</button></form>
   <div class="grid"><div class="card"><p class="eyebrow">FIREBASE</p><h3>${fb.enabled ? 'Firebase initialized' : 'Firebase not configured'}</h3><p class="card-sub">${fb.enabled ? 'Authentication and Firestore SDK are ready.' : 'Add your Firebase web app configuration to js/config.js.'}</p>${statusPill(fb.enabled ? 'CONFIGURED' : 'NOT CONFIGURED', fb.enabled)}<div class="divider"></div><button class="btn btn-outline btn-small" id="loginBtn">Sign in / create account</button> <button class="btn btn-outline btn-small" id="signOutBtn">Sign out</button></div>
-  <div class="card"><p class="eyebrow">AMADEUS LIVE TRAVEL DATA</p><h3>${travelConfigured ? 'Travel API Worker URL added' : 'Travel API not connected'}</h3><p class="card-sub">${travelConfigured ? 'The website knows the Worker URL. Sign in and run a provider search to verify it.' : 'Deploy the Cloudflare Worker, configure Amadeus production secrets and paste its HTTPS URL into CONFIG.travel.apiEndpoint.'}</p>${statusPill(travelConfigured ? 'URL CONFIGURED' : 'SETUP REQUIRED', travelConfigured)}</div>
+  <div class="card"><p class="eyebrow">FLIGHTS, STAYS & EXPERIENCES</p><h3>External provider search</h3><p class="card-sub">No airline or hotel API key is required. WAYFARER builds search links for Google Flights, Skyscanner, Google Hotels, Booking.com and activity search sites. Prices and availability are checked on those provider websites.</p>${statusPill('NO API KEY REQUIRED', true)}</div>
   <div class="card"><p class="eyebrow">AGENT37 PERSONAL</p><h3>${ag.connected ? 'Bridge configured' : 'Not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p>${statusPill(ag.connected ? 'VERIFY ON USE' : 'INSTANCE ID IS NOT AN API', ag.connected)}<div class="divider"></div><p class="card-sub">Agent37 Personal is a hosted agent. Use only a documented integration method supplied by Agent37. Do not use the Cloud Sandbox API for the Hackyard Personal challenge.</p><button class="btn btn-outline btn-small" id="agentHelp">Integration explanation</button></div>
   <div class="card"><p class="eyebrow">SUPABASE PRIVATE STORAGE</p><h3>${CONFIG.storage?.signingEndpoint ? 'Signing URL configured' : 'File upload not configured'}</h3><p class="card-sub">Optional. Uses a Firebase-verified server function and a private bucket. Firebase Functions deployment may require a billing-enabled plan.</p></div>
   <div class="card"><p class="eyebrow">PUBLIC LIVE DATA</p><h3>Weather and exchange reference</h3><p class="card-sub">Open-Meteo provides forecast data without a key for non-commercial use. Frankfurter provides reference exchange rates, not instant card/cash quotes.</p><button class="btn btn-outline btn-small" data-action="test-public-apis">Test public data sources</button><div id="publicApiTest" class="card-sub" style="margin-top:8px"></div></div></div></div>`;
@@ -415,8 +415,8 @@ function websiteHelp(message) {
   const q = message.toLowerCase();
   if (/workspace|agent|automation/.test(q)) return 'Open AI Workspace in the sidebar. It sends your instruction to Agent37 Personal when a verified bridge is configured. Any website changes must be reviewed and approved before they are saved.';
   if (/trip|itinerary|planner/.test(q)) return 'Open My Trips to create a trip record with your own destination and dates. The Trip Planner page can send natural-language questions to Agent37 when connected.';
-  if (/flight/.test(q)) return 'Open Flights, enter origin, destination, dates and traveller count, then search. Live results require Firebase sign-in and Amadeus production credentials on the travel API Worker.';
-  if (/hotel|stay/.test(q)) return 'Open Stays, enter a city and check-in/check-out dates, then search the live provider.';
+  if (/flight/.test(q)) return 'Open Flights, enter origin, destination, dates and traveller count, then choose an external provider. WAYFARER does not fetch or guarantee live fares; check the final price and rules on the provider website.';
+  if (/hotel|stay/.test(q)) return 'Open Stays, enter a city and check-in/check-out dates, then open Google Hotels or Booking.com to check current prices and availability.';
   if (/activity|experience/.test(q)) return 'Open Experiences and search by city. Activity listings and available supplier links are returned by the connected provider.';
   if (/voucher|document|booking/.test(q)) return 'Open Bookings & Documents to upload real confirmations and vouchers. WAYFARER does not fabricate booking references or claim that it booked with a supplier.';
   if (/weather/.test(q)) return 'Search a destination in Explore and select Weather. The app retrieves a current forecast from Open-Meteo.';
@@ -440,7 +440,6 @@ document.addEventListener('click', async event => {
   const plan = event.target.closest('[data-plan-place]'); if (plan) { planDestination(plan.dataset.planPlace); return; }
   const weather = event.target.closest('[data-weather-place]'); if (weather) { showPlaceWeather(weather.dataset.weatherPlace); return; }
   const openTripButton = event.target.closest('[data-open-trip]'); if (openTripButton) { openTrip(openTripButton.dataset.openTrip); return; }
-  const option = event.target.closest('[data-option-detail]'); if (option) { showOptionDetail(option.dataset.optionDetail, option.dataset.kind); return; }
   const openTask = event.target.closest('[data-open-task]'); if (openTask) { inspectTask(openTask.dataset.openTask); return; }
   const download = event.target.closest('[data-download-file]'); if (download) { try { openExternal(await getPrivateFileUrl(download.dataset.downloadFile)); } catch (error) { toast(error.message, 'error'); } return; }
   const plannerPrompt = event.target.closest('[data-planner-prompt]'); if (plannerPrompt) { sendAgentMessage(plannerPrompt.dataset.plannerPrompt, 'planner'); return; }

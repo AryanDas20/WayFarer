@@ -1,9 +1,0 @@
-name = "wayfarer-travel-api"
-main = "src/index.js"
-compatibility_date = "2026-11-18"
-
-[vars]
-# Comma-separated exact site origins allowed to call this Worker.
-# Local development: http://localhost:8080
-# After Firebase Hosting deployment, also add https://YOUR_PROJECT_ID.web.app
-APP_ORIGINS = "http://localhost:8080"

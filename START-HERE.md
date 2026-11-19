@@ -1,37 +1,38 @@
-# WAYFARER AI — Start Here (beginner guide)
+# WAYFARER AI — Beginner setup guide (Mac + Firebase + GitHub + Vercel)
 
-This guide assumes you have never built or deployed a website before. Follow the steps in order. Do not skip ahead.
+Follow these steps in order. You do not need Amadeus, Cloudflare, an airline API key, a hotel API key, or any Vercel environment variables for this version.
 
-## Before you begin: what you have and what you still need
+## Before you start
 
-You have the website source code. This ZIP does **not** contain private keys, paid API access, a Firebase project, an Amadeus production account, or an Agent37 website connection. Those belong to you and must be configured.
+You need:
+- A Mac and an internet connection.
+- A Google account for Firebase.
+- A GitHub account (free) to store the project code.
+- A Vercel account (free tier is enough for a static prototype).
 
-The app is deliberately set to **no fabricated travel data**:
+This ZIP contains the website source code, not your own Firebase project or Agent37 connection.
 
-- There is no preloaded sample traveller, trip, destination list, hotel, flight, price, booking, voucher or fake AI chat response.
-- Place search and weather use Open-Meteo's real public data services.
-- Currency conversion uses Frankfurter's published reference rates (not bank/card real-time quotes).
-- Flights, hotel offers and activity listings use Amadeus **Production** only, after you configure it. If you do not have Production access, these searches will show an explanation/error and no results.
-- Your own trips and notes appear only after you enter them.
-- The app does not claim to book or cancel real travel. It stores booking information you enter and documents you upload.
-- Agent37 Personal is shown as not connected until you have an official, supported Personal integration method. An instance ID by itself is not a website chat API.
+**What this version does:** destination lookup and weather use Open-Meteo; currency reference rates use Frankfurter; flight, hotel and activity forms open external travel search websites. It does not fetch supplier prices or book travel. There are no fabricated flight/hotel results.
 
-## Part 1 — Open the website on your Mac
+---
 
-### Step 1: Download and extract the ZIP
+## Part 1 — Download and open the website on your Mac
 
-1. Download `Wayfarer-AI-Real-Data.zip`.
-2. Open your **Downloads** folder in Finder.
-3. Double-click the ZIP file. macOS creates a folder named `wayfarer-ai` (or a similarly named folder).
+### Step 1: Extract the ZIP
+
+1. Download `WAYFARER-AI-Vercel-Firebase-Updated.zip`.
+2. Open your Mac's **Downloads** folder.
+3. Double-click the ZIP file.
+4. You should see a folder named `wayfarer-ai`.
 
 ### Step 2: Install Node.js
 
-Node.js is a free tool that runs the small local website server.
+Node.js runs the small local web server used to preview the site.
 
 1. Open <https://nodejs.org>.
 2. Download the **LTS** version for macOS.
-3. Open the downloaded installer and follow the installation steps.
-4. Open the **Terminal** app (press Command + Space, type `Terminal`, press Return).
+3. Open the installer and follow the installation steps.
+4. Open **Terminal** (press Command + Space, type `Terminal`, press Return).
 5. Type these commands one at a time:
 
 ```bash
@@ -39,106 +40,180 @@ node -v
 npm -v
 ```
 
-Both commands should print version numbers. If you see “command not found”, close and reopen Terminal. If it still appears, install Node.js again.
+You should see version numbers. If Terminal says `command not found`, close and reopen Terminal. If it still fails, reinstall Node.js LTS.
 
-### Step 3: Start WAYFARER AI
+### Step 3: Start WAYFARER on your Mac
 
-In Terminal, type `cd ` (include a space after `cd`). Drag the extracted `wayfarer-ai` folder from Finder into the Terminal window, then press Return.
-
-Now type:
+1. In Terminal, type `cd ` (type `cd`, then one space; do not press Return yet).
+2. Drag the extracted `wayfarer-ai` folder from Finder into Terminal.
+3. Press Return.
+4. Type:
 
 ```bash
 npm run dev
 ```
 
-Keep this Terminal window open. It is running your website.
+5. Keep Terminal open while you use the website.
+6. Open Chrome and visit <http://localhost:8080>.
 
-Open Chrome and visit:
+To stop the local website, go back to Terminal and press **Control + C**.
 
-<http://localhost:8080>
+### Step 4: Run the project check
 
-You should see the WAYFARER AI dashboard. To stop the local website later, return to Terminal and press **Control + C**.
-
-### Step 4: Check the website code
-
-To check JavaScript syntax, open another Terminal window, go to the same `wayfarer-ai` folder and run:
+While Terminal is in the `wayfarer-ai` folder, run:
 
 ```bash
 npm run check
 ```
 
-A successful check ends without a syntax error.
+The last line should say the project check passed.
 
-## Part 2 — Set up Firebase (accounts and saving your own trips)
+---
 
-Firebase is used for sign-in and saving each user's own records. You can open and explore the website before configuring Firebase, but cloud sign-in and private live flight/hotel searches require Firebase.
+## Part 2 — Create Firebase (login and saved trips)
 
 ### Step 5: Create a Firebase project
 
 1. Visit <https://console.firebase.google.com>.
 2. Sign in with your Google account.
-3. Click **Create a project** and give it a name such as `wayfarer-ai`.
-4. You can turn Google Analytics off for this prototype.
-5. Finish creating the project.
+3. Click **Create a project**.
+4. Enter a project name, for example `wayfarer-ai-yourname` (Firebase project IDs must be unique).
+5. You can turn Google Analytics off for this prototype.
+6. Finish creating the project.
 
-### Step 6: Register the website with Firebase
+### Step 6: Register the website as a Firebase Web App
 
-1. In the Firebase project overview, click the Web icon `</>` to add a Web App.
-2. Give it a nickname such as `WAYFARER Website`.
-3. Register the app.
-4. Firebase displays a configuration object. Copy these four values:
+1. Open your new Firebase project.
+2. On the project overview page, click the Web icon `</>` to add a web app.
+3. Give it a nickname such as `WAYFARER Website`.
+4. Register the app.
+5. Firebase shows a configuration object. Find and copy these four values:
    - `apiKey`
    - `authDomain`
    - `projectId`
    - `appId`
 
-Do not copy a service-account private key into the website. The four Web App config values above are intended for browser setup; the Amadeus and Supabase secrets are not.
+You need the **Web App config**, not a service-account JSON file. Never download or paste a service-account private key into this website.
 
-### Step 7: Enable sign-in
+### Step 7: Enable Firebase sign-in
 
 1. In Firebase, open **Build → Authentication**.
-2. Click **Get started** if shown.
+2. Click **Get started** if Firebase shows it.
 3. Open **Sign-in method**.
-4. Enable **Email/Password** and save.
-5. You may also enable **Google**. If you do, configure the support email and save.
-6. Open **Settings → Authorized domains** and make sure `localhost` is listed. Firebase Hosting's `YOUR_PROJECT_ID.web.app` domain is usually added when Hosting is set up; check it later.
+4. Enable **Email/Password**, then Save.
+5. Optional: enable **Google**. If you enable it, choose a support email and save.
+6. Later, after Vercel gives you your website address, add that domain under **Authentication → Settings → Authorized domains**.
 
 ### Step 8: Create the Firestore database
 
 1. Open **Build → Firestore Database**.
 2. Click **Create database**.
-3. Choose the production mode option (the security rules in this project will be deployed in a later step).
-4. Choose a nearby location. The location cannot easily be changed later, so choose one suitable for your users.
+3. Choose production mode.
+4. Choose a location near your expected users. The database location is difficult to change later.
 5. Finish creating the database.
 
-### Step 9: Put Firebase's web settings in the project
+### Step 9: Put the four Firebase values in the project
 
-1. Open the `wayfarer-ai` folder.
-2. Open `js` and then open `config.js` in a text editor. Visual Studio Code (<https://code.visualstudio.com>) is recommended; TextEdit can also work if set to plain text.
-3. Find the `firebase` section. Replace the four `YOUR_...` values with the four values you copied from Firebase.
-4. Keep the quotation marks around the values. Do not change the other settings yet.
-5. Save `config.js`.
-
-Example format only — use your own Firebase values:
+1. Open the extracted `wayfarer-ai` folder in Visual Studio Code. Download it from <https://code.visualstudio.com> if you do not have it.
+2. In the left file list, open `js`, then `config.js`.
+3. Find this section:
 
 ```js
 firebase: {
-  apiKey: 'paste-your-value-here',
-  authDomain: 'your-project-id.firebaseapp.com',
-  projectId: 'your-project-id',
-  appId: 'paste-your-value-here'
+  apiKey: 'YOUR_FIREBASE_WEB_API_KEY',
+  authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
+  projectId: 'YOUR_PROJECT_ID',
+  appId: 'YOUR_FIREBASE_WEB_APP_ID'
 },
 ```
 
-The `config.js` file is ignored by Git so you do not accidentally upload your local configuration. Never put Amadeus secret keys or the Supabase service-role key in this file.
+4. Replace each `YOUR_...` placeholder with the matching value copied from Firebase. Keep the quotation marks and commas.
+5. Save the file.
 
-### Step 10: Deploy Firestore security rules
+Example only (not real credentials):
 
-The rules restrict each signed-in user to their own data.
+```js
+firebase: {
+  apiKey: 'AIza...your-web-app-key...',
+  authDomain: 'wayfarer-ai-123.firebaseapp.com',
+  projectId: 'wayfarer-ai-123',
+  appId: '1:123456789:web:abcdef'
+},
+```
 
-1. Return to Terminal.
-2. Make sure Terminal is inside the main `wayfarer-ai` folder (not the `js` folder).
-3. Install the Firebase command-line tool:
+Firebase Web App config is public browser configuration. It is okay for this file to be in your website repository. **Do not put a service-account key, private key, Supabase service-role key, or other server secret here.**
+
+---
+
+## Part 3 — Put the code on GitHub
+
+### Step 10: Create a GitHub repository
+
+1. Visit <https://github.com> and sign in or create a free account.
+2. Click the `+` icon near the top-right, then **New repository**.
+3. Repository name: `WAYFARER-AI`.
+4. Choose **Public** or **Private**. Either works with Vercel.
+5. Do not add a README, license or `.gitignore` because these are already in the project folder.
+6. Click **Create repository**.
+
+### Step 11: Upload using GitHub Desktop (beginner-friendly)
+
+1. Download GitHub Desktop from <https://desktop.github.com> and install it.
+2. Open GitHub Desktop and sign in to your GitHub account.
+3. Choose **File → Add Local Repository**. If it says the folder is not a repository, choose the option to create a repository there, or choose **File → New Repository** and set the local path to the extracted `wayfarer-ai` folder.
+4. Make sure the local repository folder is the extracted `wayfarer-ai` folder itself (the folder containing `index.html`).
+5. In the Changes tab, you should see the project files. Add a summary such as `Initial WAYFARER AI website` and click **Commit to main**.
+6. Click **Publish repository** at the top. Choose the GitHub repository you created. Publish it.
+
+Important: `js/config.js` contains only the Firebase public Web App config and placeholders. It is intentionally included so Vercel can load it. Never add private credentials or service-account JSON to this file.
+
+---
+
+## Part 4 — Deploy the website on Vercel
+
+### Step 12: Import the GitHub repository into Vercel
+
+1. Visit <https://vercel.com>.
+2. Sign up or log in using GitHub.
+3. Click **Add New → Project**.
+4. Find your `WAYFARER-AI` repository and click **Import**.
+5. On Configure Project, use these settings:
+
+| Setting | Value |
+|---|---|
+| Framework Preset | Other |
+| Root Directory | `./` |
+| Build Command | Leave blank |
+| Output Directory | `.` |
+| Install Command | Leave blank |
+
+6. **Environment Variables: leave this section empty.** No Vercel environment variables are required for this version.
+7. Click **Deploy**.
+8. Wait for Vercel to finish. It will show a website address similar to `https://wayfarer-ai-something.vercel.app`.
+9. Open the website address. Your website is online.
+
+If you change the code later and push a new commit to GitHub, Vercel automatically builds and deploys the update.
+
+---
+
+## Part 5 — Connect the Vercel website to Firebase
+
+### Step 13: Add your Vercel domain to Firebase Authentication
+
+1. Copy the Vercel website domain, for example `wayfarer-ai-something.vercel.app` (do not include `https://` or a slash).
+2. Return to Firebase Console.
+3. Open **Authentication → Settings → Authorized domains**.
+4. Click **Add domain**.
+5. Paste your exact Vercel domain and save.
+6. Keep `localhost` listed so local testing continues to work.
+
+### Step 14: Publish Firestore security rules
+
+This step protects users' saved data so one signed-in user cannot read another user's private records.
+
+1. Open Terminal.
+2. Type `cd ` and drag your `wayfarer-ai` folder into Terminal, then press Return.
+3. Install Firebase command-line tools:
 
 ```bash
 npm install -g firebase-tools
@@ -150,276 +225,99 @@ npm install -g firebase-tools
 firebase login
 ```
 
-5. Create the local Firebase project link:
+5. Create the Firebase project link file:
 
 ```bash
 cp .firebaserc.example .firebaserc
 ```
 
-6. Open `.firebaserc` in your text editor. Replace `YOUR_FIREBASE_PROJECT_ID` with your actual Firebase `projectId`. Save it.
-7. In Terminal, deploy the security rules and indexes:
+6. Open `.firebaserc` in Visual Studio Code. Replace `YOUR_FIREBASE_PROJECT_ID` with the exact `projectId` from `js/config.js`. Save.
+7. In Terminal, run:
 
 ```bash
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-If Firebase asks you to select a project, choose the one you created.
+8. Confirm the deployment finishes successfully.
 
-### Step 11: Test Firebase sign-in
+The `.firebaserc` file is local and ignored by Git. You do not need to upload it to GitHub.
 
-1. Refresh <http://localhost:8080>.
+### Step 15: Test sign-in and saved trips
+
+1. Open your Vercel website and refresh it.
 2. Open **Settings**.
-3. Click the sign-in/create-account button.
-4. Create an account using your email and a password with at least six characters.
+3. Click **Sign in / create account**.
+4. Create an account with your email and a password of at least six characters.
 5. Sign in.
-6. Open **My Trips**, create a trip with your own real destination and dates, then refresh the page. It should remain saved to your account.
-
-## Part 3 — Set up real flight, hotel and activity search
-
-**Important:** This is the part that may require a payment method or paid use. Do not enter payment details unless you have read the provider's current pricing and chosen to proceed.
-
-WAYFARER calls Amadeus only at `https://api.amadeus.com` (Production). It does not use the Amadeus test endpoint. Amadeus says its test environment uses limited, cached data, while Production provides real-time data. Production billing applies beyond the included quota and may require a payment method. See the official pricing and FAQ links at the bottom of this guide.
-
-### Step 12: Create an Amadeus developer account
-
-1. Visit <https://developers.amadeus.com>.
-2. Register or sign in.
-3. Create an application in the Self-Service API area.
-4. Find your API Key and API Secret.
-5. New apps commonly start with Test credentials. **Do not put Test credentials into this project expecting real live prices.**
-6. Read Amadeus' current Production access and billing requirements. Only continue if you obtain Production credentials and accept the provider's pricing.
-
-If you only have Test access, stop here. The flight/hotel/experience pages will intentionally not show Test data as live data.
-
-### Step 13: Create a Cloudflare account for the secure travel connector
-
-The Amadeus secret must stay on a server, not in your website. This project includes a Cloudflare Worker to hold those secrets securely.
-
-1. Visit <https://dash.cloudflare.com/sign-up> and create a Cloudflare account.
-2. Verify your email and sign in.
-3. You do not need to put the Amadeus secret into the browser or share it with anyone.
-
-### Step 14: Install the travel Worker
-
-Open Terminal and go to the Worker folder inside your project:
-
-```bash
-cd workers/travel-api
-npm install
-npx wrangler login
-```
-
-A browser window opens. Approve the connection to your Cloudflare account.
-
-Now add your secret values one at a time. Replace the text after each command with your own value; Terminal will ask you to enter it securely:
-
-```bash
-npx wrangler secret put FIREBASE_PROJECT_ID
-npx wrangler secret put AMADEUS_API_KEY
-npx wrangler secret put AMADEUS_API_SECRET
-```
-
-For `FIREBASE_PROJECT_ID`, use the same Firebase project ID from Step 6. For the other two, use your **Production** Amadeus key and secret.
-
-### Step 15: Allow your local and hosted website origins
-
-1. Open `workers/travel-api/wrangler.toml` in your text editor.
-2. Find `APP_ORIGINS`.
-3. While testing locally, this can be:
-
-```toml
-APP_ORIGINS = "http://localhost:8080"
-```
-
-4. When you later deploy the website, add its exact Firebase Hosting URL separated by a comma, for example:
-
-```toml
-APP_ORIGINS = "http://localhost:8080,https://YOUR_PROJECT_ID.web.app"
-```
-
-Replace `YOUR_PROJECT_ID` with your real Firebase project ID. Do not include a slash at the end.
-
-### Step 16: Deploy the Worker
-
-Make sure Terminal is still inside `workers/travel-api`, then run:
-
-```bash
-npm run deploy
-```
-
-Cloudflare prints a Worker URL. Copy it. It will look similar to `https://wayfarer-travel-api.YOUR_ACCOUNT.workers.dev` (your actual URL will be different).
-
-### Step 17: Connect the website to the Worker
-
-1. Open `js/config.js` in your text editor.
-2. Find `travel: { apiEndpoint: '' }`.
-3. Paste your real Worker URL between the quotes:
-
-```js
-travel: { apiEndpoint: 'https://YOUR-WORKER-URL.workers.dev' },
-```
-
-4. Save the file.
-5. Refresh the website and sign in.
-6. Open **Flights**, enter a route and future date, then search. Try **Stays** and **Experiences** too.
-
-If the provider has no matching result, the website displays no result. If you see a configuration or access error, check the Worker URL, Firebase sign-in, Cloudflare Worker secrets, allowed origins and Amadeus Production access.
-
-### Step 18: Deploy the Worker again if you change its settings
-
-If you change `APP_ORIGINS` or the Worker code, return to `workers/travel-api` in Terminal and run:
-
-```bash
-npm run deploy
-```
-
-## Part 4 — Real public data that does not need API keys
-
-These services are already connected:
-
-- **Open-Meteo Geocoding:** real city/place search.
-- **Open-Meteo Weather:** current and forecast weather for a selected location.
-- **Frankfurter:** published currency reference rates. These are not live cash/card exchange quotes.
-
-Open **Explore destinations** and search for a real city. Select **Weather** on a result to view the forecast. The website shows source attribution. Open **Settings** and use **Test public data sources** to check that the two public data services respond.
-
-Open-Meteo's free API is for non-commercial use under its published request limits and CC BY attribution requirements. For a commercial product, contact Open-Meteo or use a suitable licensed provider.
-
-## Part 5 — Agent37 Personal (read this carefully)
-
-Follow the challenge's instruction exactly:
-
-1. Open <https://agent37.com/personal> — not the general Cloud/API page.
-2. Tap **Start free** and create your Personal agent. The challenge instructions say not to enter a card for this flow.
-3. Open the Agent37 dashboard and create/configure your agent.
-4. Use **Copy instance ID** and keep the ID private enough that you do not post it publicly.
-5. Do **not** use the Agent37 Cloud Sandbox/API page for this challenge.
-
-### Why the AI chat is not automatically connected yet
-
-The Personal instance ID identifies your agent, but the publicly available Personal page does not document a website-embeddable chat endpoint or a complete request/response API. Therefore this project does not invent one. Putting the instance ID into `js/config.js` alone will not connect a chatbot.
-
-Ask Agent37 support or check your Personal dashboard for its official method to connect a third-party website (for example, an officially supported webhook, messaging integration, or secure bridge). Ask them for the exact endpoint/protocol, authentication requirements, and whether third-party website embedding is supported by Personal. If they do not provide an official supported method, the website cannot safely connect to Personal just by using the instance ID.
-
-Once you receive the official integration instructions, keep the private credentials on a secure server and share the documentation (not your secret keys) so the adapter can be completed correctly. Do not paste credentials into browser code, public chat, GitHub or screenshots.
-
-Until a real bridge is configured and successfully responds, WAYFARER will show **Agent37 not connected** and will not pretend an AI task ran.
-
-## Part 6 — Deploy your website online (Firebase Hosting)
-
-Do this after the website works locally and Firebase is configured.
-
-1. In Terminal, go back to the main project folder:
-
-```bash
-cd ../..
-```
-
-This command works if Terminal started from `workers/travel-api`. If you opened a new Terminal window, use `cd ` then drag the main `wayfarer-ai` folder into Terminal and press Return.
-
-2. Make sure `.firebaserc` contains your project ID.
-3. Deploy the website:
-
-```bash
-firebase deploy --only hosting
-```
-
-4. Firebase prints your hosted website URL, usually `https://YOUR_PROJECT_ID.web.app`.
-5. Open that URL in Chrome.
-6. In Firebase Authentication → Settings → Authorized domains, ensure your hosted domain is listed.
-7. Add the hosted domain to `APP_ORIGINS` in `workers/travel-api/wrangler.toml`, along with `http://localhost:8080`, and redeploy the Worker.
-
-If you changed `js/config.js` to set the Worker URL or Firebase credentials, those local config values are part of the deployed website. **Never upload secrets or private keys.**
-
-## Part 7 — Optional private voucher/document uploads (may require billing)
-
-The project includes secure Supabase Storage code, but uploads stay disabled until you configure the signing function. This optional setup uses Firebase Cloud Functions, which requires a Firebase project on the billing-enabled plan (Blaze); Google may charge for usage beyond no-cost allowances. Do not enable billing unless you understand the costs.
-
-If you do not need document uploads for your initial test, skip this entire part. You can still use the rest of the website and enter your own booking details manually.
-
-To enable it later:
-
-1. Create a Supabase project at <https://supabase.com>.
-2. Create a **private** Storage bucket named `wayfarer-private` (do not make it public).
-3. In Firebase, enable billing only if you accept the possible charges and need Cloud Functions.
-4. In Terminal, go to the main project folder, then run:
-
-```bash
-cd functions
-npm install
-cd ..
-firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY
-```
-
-When asked, paste the Supabase **service-role** key. Never put it in `js/config.js` or expose it in your website.
-
-5. Set the Firebase Function parameters `SUPABASE_URL`, `SUPABASE_BUCKET` and `APP_ORIGIN` when the CLI prompts during deployment. Use the exact Supabase project URL, bucket name `wayfarer-private`, and your website origin.
-6. Deploy:
-
-```bash
-firebase deploy --only functions:storageSign
-```
-
-7. In Firebase Functions, copy the deployed `storageSign` URL.
-8. Put that URL, your Supabase project URL, bucket name and Supabase **anon/public** key into the `storage` section of `js/config.js`. Only the anon key belongs in the browser. Never use the service-role key there.
-
-The upload feature accepts PDF/JPEG/PNG/WebP up to 10 MB and signs paths under the signed-in user's own UID.
-
-## What each page currently does (honest feature list)
-
-- **Overview:** your own trip/task/budget counts. No preloaded trips.
-- **Explore destinations:** live place lookup from Open-Meteo Geocoding; no fabricated destination rankings or prices.
-- **Trip planner:** forwards a conversation to Agent37 only after a supported connection is configured; otherwise it explains the disconnected state.
-- **AI Workspace:** sends tasks to Agent37 only after connection; displays a proposed website change and requires your approval. Supported writes are limited to trip create/update and packing checklist.
-- **My trips:** stores trips you create or that a connected agent proposes and you approve.
-- **Flights:** Amadeus Production search only.
-- **Stays:** Amadeus Production hotel offers only.
-- **Experiences:** Amadeus Production activities only.
-- **Budget:** totals amounts you entered/recorded; no invented category estimates.
-- **Bookings & vouchers:** displays booking details you enter and files you upload. It does not create fake supplier booking confirmations.
-- **AI history:** records actual connected Agent37 replies and user-approved changes.
-- **Travel support:** saves a support note to your own account; it does not claim to contact a human consultant.
-- **Settings:** Firebase profile, integration status and tests for public data services.
-
-## Troubleshooting
-
-**The page does not open:** Check that the Terminal window running `npm run dev` is still open. Try `http://localhost:8080` again.
-
-**`npm: command not found`:** Install Node.js LTS and restart Terminal.
-
-**Firebase sign-in is unavailable:** Check the Firebase values in `js/config.js`, confirm Email/Password is enabled, and check that `localhost` is an authorized domain.
-
-**Firestore permission denied:** Deploy the project's security rules and confirm you are signed in to the correct Firebase project.
-
-**Flights/hotels say not configured:** Add your Worker URL in `js/config.js`, sign in, and confirm the Worker has Amadeus Production key/secret and Firebase project ID secrets.
-
-**Amadeus says unauthorized or invalid client:** Check you used Production credentials, not Test credentials; re-enter the secrets in Cloudflare and redeploy if needed.
-
-**The Worker says origin not allowed:** Add the exact origin (including `https://` and without a trailing slash) to `APP_ORIGINS`, then redeploy the Worker.
-
-**Agent37 says not connected:** This is intentional until you have the official Personal website integration method. An instance ID alone is not enough.
-
-**No flights/hotels found:** The app does not insert a substitute result. Check the route/date, provider coverage, credentials and current supplier inventory.
-
-## Official references
-
-- Firebase console: <https://console.firebase.google.com>
-- Firebase Web setup: <https://firebase.google.com/docs/web/setup>
-- Firebase Authentication: <https://firebase.google.com/docs/auth/web/start>
-- Firestore: <https://firebase.google.com/docs/firestore>
-- Firebase Hosting: <https://firebase.google.com/docs/hosting>
-- Cloudflare Workers: <https://developers.cloudflare.com/workers/>
-- Amadeus developer portal: <https://developers.amadeus.com>
-- Amadeus Self-Service Quick Start: <https://admin.developers.amadeus.com/self-service/apis-docs/guides/developer-guides/quick-start/>
-- Amadeus Hotel Search v3 tutorial: <https://admin.developers.amadeus.com/self-service/apis-docs/guides/developer-guides/resources/hotels/>
-- Amadeus Test vs Production data: <https://amadeus4dev.github.io/developer-guides/test-data/>
-- Amadeus pricing: <https://admin.developers.amadeus.com/self-service/apis-docs/guides/developer-guides/pricing/>
-- Amadeus API FAQ: <https://admin.developers.amadeus.com/self-service/apis-docs/guides/developer-guides/faq/>
-- Agent37 Personal: <https://www.agent37.com/personal>
-- Open-Meteo: <https://open-meteo.com/>
-- Open-Meteo terms: <https://open-meteo.com/en/terms>
-- Frankfurter: <https://frankfurter.dev/>
+6. Open **My Trips** and create a trip using your own destination and dates.
+7. Refresh the page and confirm that the trip is still there.
+8. If sign-in fails, check the Firebase Web App values in `js/config.js`, Authentication providers, authorized domains and browser console error.
 
 ---
 
-**This is a no-fabricated-data prototype, not a complete online travel agency.** Real-time supplier search requires the relevant provider's Production access. Actual booking, payment, cancellation and rebooking need additional supplier/payment integrations and are intentionally not presented as complete in this version.
+## Part 6 — Agent37 Personal (do this only after the website works)
+
+1. Visit <https://agent37.com/personal> and sign in to Agent37 Personal.
+2. Use the Personal product for the Hackyard challenge. Do not switch to Agent37 Cloud Sandbox or its API page just to obtain a key.
+3. An Agent37 instance ID by itself does **not** tell a website how to send messages to the agent.
+4. Check the Personal dashboard for an official documented website embed, external integration, webhook or supported connection method. If you cannot find one, ask Agent37 support for the exact Personal integration instructions.
+5. Do not invent an endpoint, and do not paste an instance ID into a random API URL.
+6. Until an official connection is provided and tested, keep `enabled: false` in `js/config.js`. The site will correctly show Agent37 as not connected.
+
+This ZIP does not claim Agent37 Personal is already connected. No OpenAI API key is required or used as a substitute.
+
+---
+
+## Part 7 — What about Amadeus, API keys and environment variables?
+
+- Do not create `AMADEUS_CLIENT_ID`, `AMADEUS_CLIENT_SECRET`, `AMADEUS_API_KEY` or `AMADEUS_API_SECRET` for this project.
+- The old Amadeus Self-Service setup has been removed from the code and guide.
+- No Cloudflare Worker is required.
+- No Vercel environment variables are required.
+- Open-Meteo and Frankfurter public endpoints do not need API keys for the features used here.
+- Flight, hotel and activity searches open external provider websites. The external provider shows the live prices and availability.
+
+---
+
+## Optional features — skip these at first
+
+### Supabase document storage
+
+The project contains a helper for private document uploads through a Firebase-authenticated signing endpoint. It is not ready merely by adding a Supabase URL and anon key. You need a secure backend that verifies Firebase ID tokens and creates signed storage URLs. The included optional Cloud Function may require a Firebase billing-enabled plan. Skip this feature for your initial free setup.
+
+### Custom domain
+
+After the Vercel deployment works, you can add a domain in Vercel → Project → Settings → Domains. Add the final custom domain to Firebase Authentication → Authorized domains too.
+
+---
+
+## Troubleshooting
+
+**Vercel shows a 404:** Make sure `index.html` is at the repository root, not nested inside another `wayfarer-ai/wayfarer-ai` folder. Confirm Root Directory is `./` and Output Directory is `.`.
+
+**Firebase says auth/unauthorized-domain:** Add the exact Vercel hostname under Firebase Authentication → Settings → Authorized domains.
+
+**Firebase says API key not valid:** Re-copy the `apiKey`, `authDomain`, `projectId` and `appId` from Firebase Project settings → General → Your apps, and update `js/config.js`.
+
+**Sign-in works but saved trips do not:** Make sure Firestore Database was created and Step 14 rules deployment completed successfully.
+
+**Flight search does not show fares inside WAYFARER:** This is expected. The app opens Google Flights or Skyscanner. The live results and prices appear on the provider website.
+
+**Agent37 says not connected:** This is expected until Agent37 provides a supported Personal external connection and you configure and test a secure bridge.
+
+**Weather or currency fails:** Check your internet connection and retry. These public services may occasionally be unavailable.
+
+---
+
+## Useful links
+
+- Firebase Console: <https://console.firebase.google.com>
+- Firebase documentation: <https://firebase.google.com/docs>
+- GitHub: <https://github.com>
+- GitHub Desktop: <https://desktop.github.com>
+- Vercel: <https://vercel.com>
+- Node.js: <https://nodejs.org>
+- Visual Studio Code: <https://code.visualstudio.com>
+- Agent37 Personal: <https://agent37.com/personal>
+- Open-Meteo: <https://open-meteo.com>
+- Frankfurter: <https://frankfurter.dev>

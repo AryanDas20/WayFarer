@@ -32,7 +32,7 @@ export async function initFirebase() {
 export function firebaseStatus() { return { enabled: !!(auth && db), auth, db, modules }; }
 
 export async function getFirebaseIdToken() {
-  if (!auth?.currentUser) throw new Error('Sign in with your WAYFARER account before searching live flights, hotels or activities.');
+  if (!auth?.currentUser) throw new Error('Sign in with your WAYFARER account to use this private feature.');
   return auth.currentUser.getIdToken();
 }
 

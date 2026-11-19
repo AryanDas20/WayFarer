@@ -1,4 +1,6 @@
-// Copy this file to js/config.js. Never put Amadeus secrets or other private keys here.
+// Public browser configuration. Firebase Web App config is not a private key.
+// Replace the YOUR_* values with the settings from Firebase Console > Project settings > Your apps.
+// NEVER place service-account JSON, private keys, or server secrets in this file.
 export const CONFIG = {
   appName: 'WAYFARER AI',
   firebase: {
@@ -7,17 +9,14 @@ export const CONFIG = {
     projectId: 'YOUR_PROJECT_ID',
     appId: 'YOUR_FIREBASE_WEB_APP_ID'
   },
-  travel: {
-    // Public URL of the Cloudflare Worker after deployment. No API secret belongs here.
-    apiEndpoint: ''
-  },
   agent37: {
-    // Set only after Agent37 provides a documented Personal integration method.
+    // Keep disabled until Agent37 documents a supported Personal-to-website connection.
     enabled: false,
     instanceId: '',
     bridgeUrl: ''
   },
   storage: {
+    // Optional advanced setup only. Leave blank for the beginner/free setup.
     signingEndpoint: '',
     bucket: '',
     supabaseUrl: '',
