@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#FAF8F3">
-  <meta name="description" content="WAYFARER AI — an intelligent travel companion for planning, booking and managing every journey.">
+  <meta name="theme-color" content="#073F59">
+  <meta name="description" content="WAYFARER AI — discover destinations, shape trips and keep every travel detail in one thoughtful workspace.">
   <title>WAYFARER AI — Travel, thoughtfully planned</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,24 +16,81 @@
 </head>
 <body>
   <div id="landing">
-    <header class="l-nav"><a class="brand" href="#landing" aria-label="WAYFARER AI home"><span class="brand-mark">W</span><span class="brand-copy"><strong>WAYFARER</strong><small>TRAVEL, THOUGHTFULLY</small></span></a>
+    <div class="palette-rail" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    <header class="l-nav">
+      <a class="brand" href="#landing" aria-label="WAYFARER AI home"><span class="brand-mark">W</span><span class="brand-copy"><strong>WAYFARER</strong><small>YOUR JOURNEY, REIMAGINED</small></span></a>
       <nav class="l-links" aria-label="Landing navigation"><a href="#l-discover">Discover</a><a href="#l-features">Features</a><a href="#l-how">How it works</a></nav>
-      <div class="l-cta"><button class="btn btn-outline btn-small" data-landing-login>Sign in</button><a class="btn btn-primary btn-small" href="#app">Open planner</a></div></header>
-    <section class="l-hero"><div class="l-hero-copy"><p class="eyebrow">AI-POWERED TRAVEL AGENT</p><h1>Tell us the trip.<br>We plan the journey.</h1><p>Describe your trip in plain language — WAYFARER asks what’s missing, drafts a day-by-day itinerary, estimates your budget and checks the weather. You review everything before it’s saved.</p>
-      <form id="landingForm" class="l-prompt"><label for="landingPrompt" class="sr-only">Describe your trip</label><textarea id="landingPrompt" rows="2" maxlength="600" placeholder="Delhi to Manali, 4 days, ₹15,000, mountains and adventure, budget hotels…"></textarea><button class="btn btn-tan" type="submit">Plan my trip ↗</button></form>
-      <p class="l-note">Free to explore · No fake prices · Nothing is booked without you</p></div>
-      <div class="l-hero-art" aria-hidden="true"><svg viewBox="0 0 520 420" role="img"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E3BD90"/><stop offset="1" stop-color="#DFD3B5"/></linearGradient></defs><rect width="520" height="420" rx="28" fill="url(#sky)"/><circle cx="370" cy="120" r="48" fill="#F6E7CF"/><path d="M0 300 L110 170 L190 260 L270 140 L380 280 L450 210 L520 290 V420 H0Z" fill="#C0BDBC"/><path d="M0 340 L90 240 L170 320 L260 220 L350 330 L430 260 L520 340 V420 H0Z" fill="#8F7B68"/><path d="M0 380 L120 310 L220 370 L330 300 L430 360 L520 320 V420 H0Z" fill="#675647"/><path d="M60 110 q40 -22 80 0" stroke="#675647" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M130 80 q30 -16 60 0" stroke="#675647" stroke-width="3" fill="none" stroke-linecap="round"/></svg></div></section>
-    <section class="l-section" id="l-discover"><p class="eyebrow">DESTINATION DISCOVERY</p><h2>Start with a place that tempts you.</h2><p class="l-sub">Tap a name to search live place data. We don’t invent prices or ratings — just real locations, weather and honest links.</p><div class="l-chips">
-      <button data-landing-search="Manali">Manali</button><button data-landing-search="Goa">Goa</button><button data-landing-search="Jaipur">Jaipur</button><button data-landing-search="Kochi">Kochi</button><button data-landing-search="Leh">Leh</button><button data-landing-search="Rishikesh">Rishikesh</button><button data-landing-search="Udaipur">Udaipur</button><button data-landing-search="Varanasi">Varanasi</button></div></section>
-    <section class="l-section alt" id="l-features"><p class="eyebrow">WHAT YOU GET</p><h2>A travel agent, not a search box.</h2><div class="l-grid">
-      <article><span>✳</span><h3>Conversational planning</h3><p>Chat naturally. The assistant asks for missing details and explains its choices.</p></article>
-      <article><span>▤</span><h3>Editable itineraries</h3><p>Morning, afternoon and evening for every day. Change anything, save, return later.</p></article>
-      <article><span>◎</span><h3>Budget estimates</h3><p>Category breakdown and per-person totals — always labelled as estimates.</p></article>
-      <article><span>☼</span><h3>Real weather</h3><p>Forecasts from Open-Meteo for your destination and dates.</p></article>
-      <article><span>✈</span><h3>Transport & stays</h3><p>One click opens Google Flights, Skyscanner or Booking.com with your trip filled in.</p></article>
-      <article><span>⚿</span><h3>Private by design</h3><p>Your trips live in your own account. AI keys never reach your browser.</p></article></div></section>
-    <section class="l-section" id="l-how"><p class="eyebrow">HOW IT WORKS</p><h2>From idea to itinerary in four steps.</h2><ol class="l-steps"><li><b>Describe</b><span>Where, when, who’s going, budget and interests.</span></li><li><b>Refine</b><span>Answer a question or two; ask for changes anytime.</span></li><li><b>Review</b><span>See the plan, estimates and weather. Edit freely.</span></li><li><b>Save & go</b><span>Confirm to save, then compare real options on provider sites.</span></li></ol><div class="l-final"><a class="btn btn-primary" href="#app">Start planning</a></div></section>
-    <footer class="l-footer"><div><strong>WAYFARER AI</strong><small>Hackyard Build 2026</small></div><p>Prices and availability are shown by external providers. WAYFARER AI does not book or process payments.</p></footer>
+      <div class="l-cta">
+        <button class="btn btn-outline btn-small" data-landing-login>Sign in</button>
+        <button class="btn btn-google btn-small" data-landing-google><span class="google-g">G</span> Sign in with Google</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="l-hero">
+        <div class="l-hero-copy">
+          <p class="eyebrow"><span class="live-pulse"></span> YOUR INTELLIGENT TRAVEL COMPANION</p>
+          <h1>Go beyond the map.<br><em>Find your way.</em></h1>
+          <p class="l-lede">From the first spark of an idea to the details of your itinerary, WAYFARER brings discovery, planning, budgeting and travel organisation into one beautifully connected workspace.</p>
+          <div class="l-hero-actions">
+            <button class="btn btn-primary btn-large" data-guest-start>Explore as guest <span>↗</span></button>
+            <button class="btn btn-ghost-light btn-large" data-landing-tour>Take the product tour <span>▷</span></button>
+          </div>
+          <div class="l-auth-row"><button class="text-action" data-landing-login>Already have an account? Sign in</button><span>·</span><button class="text-action" data-landing-google>Continue with Google</button></div>
+          <form id="landingForm" class="landing-prompt"><label class="sr-only" for="landingPrompt">Describe the trip you want to plan</label><textarea id="landingPrompt" rows="2" maxlength="600" placeholder="Or start with an idea: Delhi to Manali, 4 days, ₹15,000..."></textarea><button class="btn btn-prompt" type="submit">Start planning ↗</button></form>
+          <div class="l-trust-row"><span>✓ No account needed to explore</span><span>✓ Your choices stay in your control</span><span>✓ No invented travel prices</span></div>
+        </div>
+        <div class="l-hero-art" aria-label="Travel planning dashboard preview">
+          <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
+          <div class="travel-window">
+            <div class="travel-window-top"><span class="window-dots"><i></i><i></i><i></i></span><span>YOUR NEXT CHAPTER</span><span class="window-live">● LIVE</span></div>
+            <div class="travel-scene"><div class="scene-sun"></div><div class="scene-mountain mountain-back"></div><div class="scene-mountain mountain-front"></div><div class="scene-water"></div><div class="scene-label"><small>DESTINATION SPOTLIGHT</small><strong>Somewhere<br>extraordinary.</strong><span>Let curiosity lead the way ↗</span></div></div>
+            <div class="preview-bottom"><div><small>YOUR TRAVEL PLAN</small><strong>One space. Every detail.</strong></div><div class="preview-avatar-stack"><b>W</b><b>✳</b><b>↗</b></div></div>
+          </div>
+          <div class="float-card float-weather"><span class="float-icon">☀</span><div><strong>Weather-aware</strong><small>Plan with the forecast</small></div></div>
+          <div class="float-card float-budget"><span class="float-icon">◎</span><div><strong>Budget in view</strong><small>Every estimate explained</small></div></div>
+          <span class="hero-star star-a">✳</span><span class="hero-star star-b">✧</span>
+        </div>
+      </section>
+
+      <section class="l-proof-strip" aria-label="Platform highlights"><div><strong>01</strong><span>Discover real destinations</span></div><div><strong>02</strong><span>Build flexible itineraries</span></div><div><strong>03</strong><span>Keep every detail together</span></div><div><strong>04</strong><span>Stay in control</span></div></section>
+
+      <section class="l-section l-discover-section" id="l-discover">
+        <div class="section-kicker"><span>01 / DISCOVER</span><span>START WITH CURIOSITY</span></div>
+        <div class="section-heading-row"><div><p class="eyebrow">DESTINATION DISCOVERY</p><h2>Somewhere is calling.<br><em>Let's find it.</em></h2></div><p class="l-sub">Search real place records, explore destinations and check weather. Begin with a place you love, or let a new idea find you.</p></div>
+        <div class="discover-panel"><div class="discover-copy"><span class="discover-icon">⌖</span><h3>Where would you like to go?</h3><p>Choose a destination below to open live search inside your workspace. You can explore without creating an account.</p></div><div class="l-chips"><button data-landing-search="Manali">Manali <span>↗</span></button><button data-landing-search="Goa">Goa <span>↗</span></button><button data-landing-search="Jaipur">Jaipur <span>↗</span></button><button data-landing-search="Kochi">Kochi <span>↗</span></button><button data-landing-search="Leh">Leh <span>↗</span></button><button data-landing-search="Rishikesh">Rishikesh <span>↗</span></button><button data-landing-search="Udaipur">Udaipur <span>↗</span></button><button data-landing-search="Varanasi">Varanasi <span>↗</span></button></div></div>
+      </section>
+
+      <section class="l-section l-features-section" id="l-features">
+        <div class="section-kicker"><span>02 / THE WORKSPACE</span><span>MORE THAN A TRIP PLANNER</span></div>
+        <div class="section-heading-row"><div><p class="eyebrow">THE WAYFARER TOOLKIT</p><h2>Your whole journey.<br><em>Thoughtfully connected.</em></h2></div><p class="l-sub">Each tool has a clear purpose, useful context and transparent limits. Select any feature to understand exactly what it does and how it helps.</p></div>
+        <div class="l-grid">
+          <button class="l-feature-card" data-feature="discovery"><span class="feature-number">01</span><span class="feature-symbol">⌖</span><h3>Explore destinations</h3><p>Find places with live geocoding data, location details and weather context.</p><span class="feature-more">Explore the feature ↗</span></button>
+          <button class="l-feature-card" data-feature="planner"><span class="feature-number">02</span><span class="feature-symbol">✳</span><h3>AI trip planner</h3><p>Turn a natural-language travel idea into a structured, editable itinerary.</p><span class="feature-more">Explore the feature ↗</span></button>
+          <button class="l-feature-card" data-feature="workspace"><span class="feature-number">03</span><span class="feature-symbol">⌘</span><h3>AI workspace</h3><p>Send travel tasks to your connected Agent37 assistant and review real responses.</p><span class="feature-more">Explore the feature ↗</span></button>
+          <button class="l-feature-card" data-feature="trips"><span class="feature-number">04</span><span class="feature-symbol">▤</span><h3>My trips</h3><p>Keep trip dates, travellers, plans, notes and progress in one organised place.</p><span class="feature-more">Explore the feature ↗</span></button>
+          <button class="l-feature-card" data-feature="budget"><span class="feature-number">05</span><span class="feature-symbol">◎</span><h3>Budget planner</h3><p>Compare estimates with the budget you set and track costs you enter yourself.</p><span class="feature-more">Explore the feature ↗</span></button>
+          <button class="l-feature-card" data-feature="travel-search"><span class="feature-number">06</span><span class="feature-symbol">✈</span><h3>Flights & stays</h3><p>Prepare contextual searches and compare final prices on trusted provider sites.</p><span class="feature-more">Explore the feature ↗</span></button>
+          <button class="l-feature-card" data-feature="documents"><span class="feature-number">07</span><span class="feature-symbol">▣</span><h3>Travel documents</h3><p>Keep your own booking records, confirmations and supported private uploads together.</p><span class="feature-more">Explore the feature ↗</span></button>
+          <button class="l-feature-card" data-feature="profile"><span class="feature-number">08</span><span class="feature-symbol">◉</span><h3>Personal travel profile</h3><p>Set your home airport, currency, pace and interests to make planning more relevant.</p><span class="feature-more">Explore the feature ↗</span></button>
+        </div>
+        <div class="feature-note"><span>✦</span><p><strong>Built for transparent planning.</strong> WAYFARER helps you organise decisions. External providers control current inventory, prices and bookings, and nothing is booked without your action.</p></div>
+      </section>
+
+      <section class="l-section l-preview-section" id="l-preview">
+        <div class="section-kicker"><span>03 / TAKE A CLOSER LOOK</span><span>INTERACTIVE PRODUCT PREVIEW</span></div>
+        <div class="section-heading-row"><div><p class="eyebrow">ONE CONNECTED EXPERIENCE</p><h2>See how the pieces<br><em>work together.</em></h2></div><p class="l-sub">Choose a stage of your journey to see what WAYFARER brings together and what you can do next.</p></div>
+        <div class="preview-explorer"><div class="preview-tabs" role="tablist" aria-label="Journey stages"><button class="preview-tab active" data-feature-tab="discover" role="tab" aria-selected="true">01 Discover</button><button class="preview-tab" data-feature-tab="plan" role="tab" aria-selected="false">02 Plan</button><button class="preview-tab" data-feature-tab="organise" role="tab" aria-selected="false">03 Organise</button><button class="preview-tab" data-feature-tab="compare" role="tab" aria-selected="false">04 Compare</button></div><div class="preview-content" id="featurePreview" aria-live="polite"><div class="preview-content-icon">⌖</div><div><p class="eyebrow">THE FIRST STEP</p><h3>Find a place that feels right.</h3><p>Search real destinations, review the location context and check current weather. Save ideas to a wishlist so inspiration has somewhere to go.</p><button class="btn btn-primary btn-small" data-guest-start>Explore destinations ↗</button></div><div class="preview-mini-map"><span class="map-pin pin-one">⌖</span><span class="map-pin pin-two">✦</span><span class="map-route"></span><span class="map-caption">DISCOVER / SAVE / RETURN</span></div></div></div>
+      </section>
+
+      <section class="l-section l-how-section" id="l-how">
+        <div class="section-kicker"><span>04 / THE FLOW</span><span>YOUR PACE, YOUR DECISIONS</span></div>
+        <p class="eyebrow">HOW IT WORKS</p><h2>From first thought<br>to <em>ready when you are.</em></h2>
+        <div class="l-steps"><article><span>01</span><b>Discover</b><p>Search destinations, save places and collect ideas that match your kind of travel.</p></article><article><span>02</span><b>Shape the plan</b><p>Share your dates, budget and interests. Refine the itinerary until it feels right.</p></article><article><span>03</span><b>Stay organised</b><p>Keep your trip records, estimated costs, documents and useful travel notes together.</p></article><article><span>04</span><b>Compare & decide</b><p>Open external providers, verify their latest terms and make bookings directly with them.</p></article></div>
+        <div class="l-guided-banner"><div><p class="eyebrow">NEED A WALKTHROUGH?</p><h3>Take the guided tour.</h3><p>We'll move through the workspace with you and explain what each area is for, how it works and when to use it.</p></div><button class="btn btn-primary" data-landing-tour>Start website guide ↗</button></div>
+      </section>
+    </main>
+    <footer class="l-footer"><div><a class="brand" href="#landing"><span class="brand-mark">W</span><span class="brand-copy"><strong>WAYFARER</strong><small>YOUR JOURNEY, REIMAGINED</small></span></a><small>Plan with clarity. Travel with curiosity.</small></div><div class="footer-links"><a href="#l-discover">Discover</a><a href="#l-features">Features</a><a href="#l-how">How it works</a><button data-landing-login>Sign in</button></div><p>WAYFARER does not sell tickets or process bookings. Prices and availability are verified with external travel providers.</p></footer>
   </div>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar" aria-label="Main navigation">
@@ -64,6 +121,7 @@
         <button class="nav-item" data-route="settings"><span class="nav-icon">⚙</span>Settings</button>
       </nav>
       <div class="sidebar-bottom">
+        <button class="sidebar-tour-btn" id="sidebarTourBtn"><span>✦</span><span><strong>Take a guided tour</strong><small>Learn every workspace feature</small></span><b>↗</b></button>
         <div class="agent-mini"><span class="status-dot" id="agentDot"></span><div><strong>Agent connection</strong><small id="agentStatusMini">Agent37 not connected</small></div><span class="mini-spark">✳</span></div>
         <button class="profile-mini" data-route="settings"><span class="avatar" id="sideAvatar">T</span><span><strong id="sideUserName">Traveller</strong><small id="sideUserEmail">Local workspace · not signed in</small></span><span class="chevron">⌄</span></button>
       </div>
@@ -76,8 +134,10 @@
         <div class="top-actions">
           <label class="global-search"><span>⌕</span><input id="globalSearch" type="search" placeholder="Search destinations, trips..." aria-label="Search website"><kbd>⌘ K</kbd></label>
           <button class="icon-btn" id="notificationBtn" aria-label="Notifications">♧<span class="notification-dot"></span></button>
+          <button class="btn btn-soft btn-small top-tour-btn" id="guideTourBtn">✦ Guide tour</button>
           <button class="icon-btn" id="themeToggle" aria-label="Toggle theme">☼</button>
           <button class="top-avatar" data-route="settings" id="topAvatar">T</button>
+          <button class="btn btn-outline btn-small top-signout" id="topSignOut">Exit guest</button>
         </div>
       </header>
 
@@ -87,6 +147,7 @@
 
   <button class="floating-assistant" id="helpAssistant" aria-label="Open website guide"><span class="assistant-orb">✳</span><span><strong>Need a hand?</strong><small>Ask your travel guide</small></span></button>
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  <div id="tourLayer" class="tour-layer" aria-hidden="true"></div>
 
   <dialog class="modal" id="modal">
     <div class="modal-head"><div><p class="eyebrow" id="modalEyebrow">WAYFARER AI</p><h2 id="modalTitle">Review your changes</h2></div><button class="icon-btn" id="modalClose" aria-label="Close dialog">×</button></div>

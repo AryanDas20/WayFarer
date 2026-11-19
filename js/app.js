@@ -28,6 +28,32 @@ const id = prefix => `${prefix}-${crypto.randomUUID()}`;
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const currentUser = () => getCurrentUser();
 
+const FEATURE_DETAILS = {
+  discovery: { title: 'Explore destinations', route: 'explore', intro: 'Discover real places and make more informed choices before you commit to a destination.', paragraphs: ['Search city and place records using Open-Meteo Geocoding. Results can include the destination name, country, administrative area, coordinates and population when the source provides it.', 'Open a result to check its current weather, save it to your wishlist for later, or use it as the starting point for a trip. The page is designed to make discovery a useful first step rather than a static gallery.', 'Because results come from a live source, availability and detail can vary by spelling and location coverage. WAYFARER does not invent ratings, prices or recommendations.'], note: 'Best for: comparing destination ideas, collecting places and checking basic location context.' },
+  planner: { title: 'AI trip planner', route: 'planner', intro: 'Describe the journey in everyday language and shape it into a day-by-day plan.', paragraphs: ['You can include the origin, destination, dates, number of travellers, budget and the kind of activities you enjoy. The planner sends the request to your configured Agent37 Cloud assistant and displays the response in a conversation.', 'When the assistant returns a structured itinerary, WAYFARER can display each day with morning, afternoon and evening activities, travel notes and an estimated budget breakdown. You can review the proposal before choosing to save it as a trip.', 'Saved plans remain editable. Estimates are not supplier quotes, and the AI never silently books travel or changes a saved trip without your confirmation.'], note: 'Requires a signed-in Firebase account and a correctly configured, running Agent37 instance for AI responses. Guests can still use the rest of the planner workspace and local trip tools.' },
+  workspace: { title: 'AI workspace', route: 'workspace', intro: 'A focused command area for sending travel-related instructions to your connected Agent37 assistant.', paragraphs: ['Use natural language to ask for planning help or a structured travel task. The workspace sends the instruction through the website server to your Agent37 Cloud Hermes instance, then records real responses and user-approved actions in its history.', 'Your browser does not contain the Agent37 API key. The server verifies a Firebase ID token before forwarding an authenticated request. If the instance or model provider is unavailable, the website shows the actual error instead of fabricating a result.', 'Review the execution history to understand what was requested and what response was received. Website changes and bookings are not performed automatically.'], note: 'Requires Firebase sign-in plus a configured Agent37 Cloud key, instance ID, base URL and usable model/provider.' },
+  trips: { title: 'My trips', route: 'trips', intro: 'Keep the details of every journey together, from an early idea to a trip you have completed.', paragraphs: ['Create a trip record with its title, destination, origin, travel dates, traveller count, budget and status. Open a trip to review its itinerary, edit details, add costs or export a calendar file where supported.', 'Trip records are stored in the current guest workspace on this browser or in your signed-in account when Firebase and Firestore are configured. Guest records stay local to the device until you choose to sign in; they are not automatically uploaded or merged.', 'The trip dashboard only displays records that you or the assistant have actually saved. It does not create sample journeys or pretend that a booking exists.'], note: 'Best for: keeping each journey organised and returning to your decisions later.' },
+  budget: { title: 'Budget planner', route: 'budget', intro: 'Understand the money you plan to spend and compare your estimates with costs you record.', paragraphs: ['The budget view separates an estimated trip budget from actual expenses that you enter. It can show a total and a per-person figure based on traveller count, as well as category-level amounts when an itinerary estimate includes them.', 'Add a real cost such as a train ticket, stay or activity as you go. WAYFARER updates the recorded-spend total and compares it with the budget you set, helping you see where your plan stands.', 'AI-generated numbers are clearly estimates, not live quotes. Actual supplier prices, taxes, exchange rates and fees should be checked before purchase.'], note: 'Best for: planning a realistic spending limit and tracking the costs you choose to enter.' },
+  'travel-search': { title: 'Flights, stays & experiences', route: 'flights', intro: 'Prepare travel searches using the trip details you already know, then compare options directly with providers.', paragraphs: ['Flight, accommodation and activity forms collect useful search details such as route, city, dates, traveller count and interests. WAYFARER uses those details to open contextual searches on external provider websites.', 'The application does not currently fetch airline or hotel inventory itself. Final prices, availability, baggage, cancellation rules, taxes and booking terms are controlled by the provider and must be verified there.', 'When a trip already has dates and destinations, planner actions can prefill parts of the external search form so you do not have to enter the same details repeatedly.'], note: 'Best for: moving from a plan to a real-world comparison. WAYFARER does not make payments or bookings.' },
+  documents: { title: 'Bookings & travel documents', route: 'bookings', intro: 'Keep your own booking details and travel documents together for easier reference.', paragraphs: ['Add booking information from a real supplier confirmation or upload supported PDF and image files when private file storage has been configured. Records can be associated with a trip and reviewed from the documents area.', 'The page only displays details you enter or files you actually upload. It does not generate booking references, claim a reservation has been made, or contact a supplier on your behalf.', 'Secure private uploads depend on the Firebase-verified signing function and storage configuration. Guests can use local trip notes and records, but private cloud file upload requires sign-in and the relevant backend setup.'], note: 'Best for: organising confirmations after you have booked directly with a travel provider.' },
+  profile: { title: 'Personal travel profile', route: 'settings', intro: 'Set your travel preferences once so your workspace has useful context.', paragraphs: ['Your profile can hold a display name, home city or airport, preferred currency, travel pace and interests. You can update these details at any time from Settings.', 'Only preferences you provide are used as context for the travel assistant. They are not a substitute for trip dates, traveller counts or other information that changes from one journey to another.', 'In guest mode your profile is saved in this browser. After sign-in, profile information is saved within your account when Firebase storage is available.'], note: 'Best for: reducing repeated setup and keeping your planning preferences consistent.' },
+  flights: { title: 'Flight search', route: 'flights', intro: 'Prepare flight searches with a route, dates and traveller count.', paragraphs: ['Enter an origin, destination, departure date, optional return date and adult count. WAYFARER builds a search link for an external flight provider so you can check the current options.', 'Supplier websites control current schedules, fare rules, baggage, taxes, seats and availability. Review all final terms before purchase.'], note: 'WAYFARER does not sell tickets, guarantee fares or complete flight bookings.' },
+  stays: { title: 'Stays search', route: 'hotels', intro: 'Compare accommodation options using the city, stay dates and number of adults.', paragraphs: ['The stay form prepares searches for external accommodation providers. Use it to continue from a trip plan or enter a new destination and dates.', 'Check total price, local taxes, cancellation policy, room details and property terms on the provider site before booking.'], note: 'No hotel inventory or live room pricing is hosted by WAYFARER.' },
+  experiences: { title: 'Experiences', route: 'experiences', intro: 'Find activity ideas and continue to external experience search providers.', paragraphs: ['Choose a destination and the kind of experience you are interested in, such as adventure, guided tours, food or culture. WAYFARER prepares a contextual search for you.', 'Listings, suitability, availability and prices are controlled by the external sites. Check age, accessibility, safety and cancellation information before you book.'], note: 'Best for: adding activities to a journey after you have chosen where to go.' },
+  history: { title: 'AI history', route: 'history', intro: 'Review records of actual assistant responses and approved actions.', paragraphs: ['The history area lists completed tasks and responses that were genuinely received. Open a record to inspect its instruction, reply and execution log.', 'It is intentionally transparent: the app does not pre-populate the history with demo tasks or claim that an action ran when it did not.'], note: 'AI history is most useful when you want to review previous planning requests.' },
+  wishlist: { title: 'Wishlist', route: 'wishlist', intro: 'Collect destination ideas and return to them when you are ready to plan.', paragraphs: ['Save a place from destination search and it appears in your wishlist. Reopen its location details, check weather or use it to start a new trip.', 'Saved places live in your guest browser workspace or signed-in account depending on the current session and available cloud sync.'], note: 'Best for: building a shortlist before choosing your next destination.' },
+  support: { title: 'Travel support notes', route: 'support', intro: 'Record a travel question or issue so you can keep the context with your workspace.', paragraphs: ['Choose a topic and write the details of a question, disruption, accessibility need or other travel concern. The note is saved for your own reference.', 'This is not a live helpdesk or an active supplier ticket. It does not automatically send the request to a human support team or airline.'], note: 'Best for: keeping your own travel notes and follow-up context in one place.' },
+  weather: { title: 'Weather context', route: 'explore', intro: 'Check forecast information for a destination before you decide what to do.', paragraphs: ['Select Weather on a destination result to request location-based weather from Open-Meteo. The result can include the current conditions and forecast data returned by that provider.', 'Weather is changeable and should be checked again close to departure. Use it as planning context, not a guarantee of conditions at your travel time.'], note: 'Weather coverage depends on the destination coordinates and provider response.' },
+  currency: { title: 'Currency reference', route: 'settings', intro: 'Use public reference exchange-rate information as a planning aid.', paragraphs: ['The application can retrieve indicative exchange rates from Frankfurter for supported currency pairs. These reference rates can help you estimate a budget in another currency.', 'They are not live cash, card or bank rates and do not include your provider\'s spreads or fees. Check with your bank or payment provider before exchanging money.'], note: 'Reference information only; not a transaction or a guaranteed exchange quote.' }
+};
+
+const FEATURE_PREVIEWS = {
+  discover: { icon: '⌖', kicker: 'THE FIRST STEP', title: 'Find a place that feels right.', body: 'Search real destinations, review the location context and check current weather. Save ideas to a wishlist so inspiration has somewhere to go.', cta: 'Explore destinations ↗', route: 'explore' },
+  plan: { icon: '✳', kicker: 'MAKE IT YOURS', title: 'Shape the journey around you.', body: 'Describe dates, travellers, budget and interests. Review a structured day-by-day proposal, refine it and save only when you are ready.', cta: 'Open trip planner ↗', route: 'planner' },
+  organise: { icon: '▤', kicker: 'KEEP IT TOGETHER', title: 'All the details have a home.', body: 'Keep trips, saved places, cost records, support notes and booking documents organised in a connected workspace.', cta: 'View my trips ↗', route: 'trips' },
+  compare: { icon: '↗', kicker: 'YOUR CALL, ALWAYS', title: 'Compare options with clarity.', body: 'Use contextual links to open external flight, stay and activity searches. Check the provider\'s current prices and terms before you decide.', cta: 'Compare travel options ↗', route: 'flights' }
+};
+
 function toast(message, type = 'success') {
   const el = document.createElement('div'); el.className = `toast ${type === 'error' ? 'error' : ''}`; el.textContent = message;
   $('#toastRegion').append(el); setTimeout(() => el.remove(), 4000);
@@ -51,7 +77,8 @@ function routeTo(route) {
   $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.route === route));
   const names = { dashboard:'Overview', explore:'Explore destinations', planner:'Trip planner', workspace:'AI Workspace', trips:'My trips', flights:'Flights', hotels:'Stays', experiences:'Experiences', budget:'Budget planner', trip:'Trip details', bookings:'Bookings & documents', history:'AI history', wishlist:'Wishlist', support:'Travel support', settings:'Settings' };
   $('#breadcrumbCurrent').textContent = names[route] || 'Overview';
-  renderRoute(route); content.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'smooth' });
+  const pendingRender = renderRoute(route); content.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'smooth' });
+  return pendingRender;
 }
 async function renderRoute(route) {
   try {
@@ -104,6 +131,19 @@ async function renderDashboard() {
     <div class="section-head"><div><h2>Travel search partners</h2><p>Open external providers to check current prices and availability.</p></div></div>
     <div class="grid grid-3"><button class="quick-link" data-route="flights"><div><strong>Search flights</strong><small>Opens external flight search providers.</small></div><span>✈</span></button><button class="quick-link" data-route="hotels"><div><strong>Search stays</strong><small>Compare stays on external provider sites.</small></div><span>⌂</span></button><button class="quick-link" data-route="experiences"><div><strong>Find experiences</strong><small>Find activities on external search sites.</small></div><span>◇</span></button></div>
     <div class="grid grid-2" style="margin-top:16px"><div class="card"><p class="eyebrow">AGENT STATUS</p><h3>${ag.connected ? 'Agent37 Cloud configured' : 'Agent37 not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p><button class="btn btn-outline btn-small" data-route="settings">Integration settings ↗</button></div><div class="card"><p class="eyebrow">DATA POLICY</p><h3>No invented travel results</h3><p class="card-sub">WAYFARER never invents fares or hotel prices. External providers show their own live availability and final terms.</p></div></div>`;
+  if (currentUser().isGuest) content.insertAdjacentHTML('afterbegin', `<div class="guest-banner"><p><strong>You're exploring as a guest.</strong> Your trips, saved places and preferences stay in this browser. Sign in to sync account data across devices and unlock the private AI workspace.</p><button class="btn btn-primary btn-small" data-landing-login>Sign in / create account ↗</button></div>`);
+  content.insertAdjacentHTML('beforeend', `<div class="section-head"><div><h2>Explore your workspace</h2><p>Choose a feature to understand what it does, or open the guided tour for a complete walkthrough.</p></div><button class="btn btn-outline btn-small" id="dashboardTourShortcut">✦ Start guided tour</button></div>
+    <div class="feature-atlas">
+      <button class="atlas-card" data-feature="discovery"><span>⌖</span><strong>Destination discovery</strong><small>Live place search, weather context and saved destination ideas.</small><em>Understand this feature ↗</em></button>
+      <button class="atlas-card" data-feature="planner"><span>✳</span><strong>AI trip planner</strong><small>Conversational planning, editable day-by-day itineraries and review steps.</small><em>Understand this feature ↗</em></button>
+      <button class="atlas-card" data-feature="trips"><span>▤</span><strong>My trips</strong><small>Dates, travellers, trip status, itinerary and personal records.</small><em>Understand this feature ↗</em></button>
+      <button class="atlas-card" data-feature="budget"><span>◎</span><strong>Budget planner</strong><small>Estimate breakdowns, per-person totals and recorded expenses.</small><em>Understand this feature ↗</em></button>
+      <button class="atlas-card" data-feature="travel-search"><span>✈</span><strong>Travel search</strong><small>Contextual links for flights, stays and activity providers.</small><em>Understand this feature ↗</em></button>
+      <button class="atlas-card" data-feature="documents"><span>▣</span><strong>Documents</strong><small>Keep uploaded confirmations and your own booking records.</small><em>Understand this feature ↗</em></button>
+      <button class="atlas-card" data-feature="workspace"><span>⌘</span><strong>AI workspace</strong><small>Agent37 requests, actual responses and transparent execution history.</small><em>Understand this feature ↗</em></button>
+      <button class="atlas-card" data-feature="profile"><span>◉</span><strong>Travel profile</strong><small>Personal preferences, home airport, currency and travel pace.</small><em>Understand this feature ↗</em></button>
+    </div>`);
+  $('#dashboardTourShortcut')?.addEventListener('click', startWebsiteTour);
 }
 function tripCard(trip) {
   return `<article class="card trip-card"><div class="trip-cover"></div><div class="trip-data"><span class="pill">${escapeHTML(trip.status || 'draft')}</span><h3>${escapeHTML(trip.title || trip.destination)}</h3><p>${escapeHTML(trip.destination)} · ${dateFmt(trip.startDate)} — ${dateFmt(trip.endDate)}</p><div class="trip-stats"><span>♙ ${Number(trip.travellers || 1)} travellers</span><span>◎ Budget ${trip.budget ? money(trip.budget) : 'not set'}</span><span>◷ ${trip.days?.length || 0} itinerary days</span></div></div><button class="btn btn-primary btn-small" data-open-trip="${escapeHTML(trip.id)}">Open trip ↗</button></article>`;
@@ -234,11 +274,13 @@ function applyCatalogPrefill(kind) {
 async function renderWorkspace() {
   const tasks = await listItems('tasks'); const ag = agent37ConnectionStatus();
   content.innerHTML = `${pageHead('YOUR AI COMMAND CENTRE','Tell your agent what to do.','The workspace sends your instruction to your Agent37 Cloud Hermes instance. Website changes are not applied automatically.')}
+  ${currentUser().isGuest ? `<div class="guest-banner"><div><p><strong>Guest access is on.</strong> You can explore the workspace and review how it works. Sending private Agent37 requests requires a Firebase account so your requests stay authenticated.</p></div><button class="btn btn-primary btn-small" id="workspaceSignIn" type="button">Sign in to unlock AI ↗</button></div>` : ''}
   <div class="grid grid-2" style="margin-bottom:16px"><div class="card"><p class="eyebrow">AGENT STATUS</p><h3>${ag.connected ? 'Agent37 Cloud configured' : 'Agent37 is not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p>${statusPill(ag.connected ? 'VERIFY ON FIRST REQUEST' : 'NO FAKE FALLBACK', false)} <button class="btn btn-outline btn-small" data-route="settings">Settings ↗</button></div><div class="card"><p class="eyebrow">APPROVAL POLICY</p><h3>You stay in control.</h3><p class="card-sub">The AI can advise and plan in chat. It does not automatically modify saved trips or make bookings. This website cannot book or cancel travel inventory without a supplier booking integration.</p></div></div>
   <section class="workspace-panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px"><div><p class="eyebrow">NATURAL LANGUAGE TASKS</p><h3 style="font:600 27px 'Cormorant Garamond',serif;color:var(--brown);margin:0">Your travel operations desk</h3></div><span class="pill">✳ Agent Workspace</span></div>
   <form id="workspaceForm"><div class="workspace-composer"><textarea id="workspaceInput" placeholder="Example: Create a trip for my chosen destination using the dates and budget I provide…" aria-label="Describe a task"></textarea><div style="display:grid;gap:6px"><button class="icon-btn" id="workspaceVoice" type="button" aria-label="Use voice input">⌁</button><button class="btn btn-primary" type="submit">Send to Agent37 ↗</button></div></div><div class="workspace-tools"><span class="muted" style="font-size:10px">No local demo agent · no simulated tool results</span><span class="muted" style="font-size:10px">Voice input where supported</span></div></form></section>
   <div class="section-head"><div><h2>Execution history</h2><p>Only real Agent37 responses and user-created records are recorded.</p></div><button class="btn btn-outline btn-small" data-route="history">Full history ↗</button></div>
   ${tasks.length ? `<div class="grid">${tasks.map(taskCard).join('')}</div>` : emptyState('✣','No AI tasks yet','Sign in and send your first task to Agent37 Cloud.')}`;
+  $('#workspaceSignIn')?.addEventListener('click', showLoginModal);
   $('#workspaceForm').addEventListener('submit', async e => { e.preventDefault(); await createWorkspaceTask($('#workspaceInput').value); });
   $('#workspaceVoice').addEventListener('click', () => startVoiceInput($('#workspaceInput')));
 }
@@ -490,14 +532,14 @@ async function renderSettings() {
   const user = currentUser(); profile = await getProfile(); const fb = firebaseStatus(); const ag = agent37ConnectionStatus();
   content.innerHTML = `${pageHead('YOUR ACCOUNT & INTEGRATIONS','Set up your travel workspace.','Connect your own services. Private API secrets never belong in browser configuration.')}
   <div class="grid grid-2"><form class="card" id="profileForm"><p class="eyebrow">TRAVELLER PROFILE</p><h3>Your preferences</h3><div class="form-grid" style="margin-top:15px"><div class="field"><label for="profileName">Display name</label><input class="input" id="profileName" value="${escapeHTML(profile.name || user.displayName)}"></div><div class="field"><label for="profileHome">Home city / airport</label><input class="input" id="profileHome" value="${escapeHTML(profile.homeAirport || '')}" placeholder="Enter your own home city"></div><div class="field"><label for="profileCurrency">Preferred currency</label><select class="select" id="profileCurrency"><option value="INR" ${profile.currency === 'INR' ? 'selected' : ''}>INR</option><option value="USD" ${profile.currency === 'USD' ? 'selected' : ''}>USD</option><option value="EUR" ${profile.currency === 'EUR' ? 'selected' : ''}>EUR</option></select></div><div class="field"><label for="profilePace">Travel pace</label><select class="select" id="profilePace"><option ${profile.pace === 'Balanced' ? 'selected' : ''}>Balanced</option><option ${profile.pace === 'Slow and relaxed' ? 'selected' : ''}>Slow and relaxed</option><option ${profile.pace === 'See it all' ? 'selected' : ''}>See it all</option><option ${profile.pace === 'Adventure-led' ? 'selected' : ''}>Adventure-led</option></select></div></div><div class="field" style="margin-top:13px"><label for="profileInterests">Interests (comma separated)</label><input class="input" id="profileInterests" value="${escapeHTML((profile.interests || []).join(', '))}" placeholder="Enter your interests"></div><button class="btn btn-primary" style="margin-top:15px" type="submit">Save preferences</button></form>
-  <div class="grid"><div class="card"><p class="eyebrow">FIREBASE</p><h3>${fb.enabled ? 'Firebase initialized' : 'Firebase not configured'}</h3><p class="card-sub">${fb.enabled ? 'Authentication and Firestore SDK are ready.' : 'Add the six FIREBASE_* variables in Vercel and redeploy.'}</p>${statusPill(fb.enabled ? 'CONFIGURED' : 'NOT CONFIGURED', fb.enabled)}<div class="divider"></div><button class="btn btn-outline btn-small" id="loginBtn">Sign in / create account</button> <button class="btn btn-outline btn-small" id="signOutBtn">Sign out</button></div>
+  <div class="grid"><div class="card"><p class="eyebrow">FIREBASE</p><h3>${fb.enabled ? 'Firebase initialized' : 'Firebase not configured'}</h3><p class="card-sub">${fb.enabled ? 'Authentication and Firestore SDK are ready.' : 'Add the six FIREBASE_* variables in Vercel and redeploy.'}</p>${statusPill(fb.enabled ? 'CONFIGURED' : 'NOT CONFIGURED', fb.enabled)}<div class="divider"></div><button class="btn btn-outline btn-small" id="loginBtn">Sign in / create account</button> <button class="btn btn-outline btn-small" id="signOutBtn">${user.isGuest ? 'Return to home' : 'Sign out'}</button></div>
   <div class="card"><p class="eyebrow">FLIGHTS, STAYS & EXPERIENCES</p><h3>External provider search</h3><p class="card-sub">No airline or hotel API key is required. WAYFARER builds search links for Google Flights, Skyscanner, Google Hotels, Booking.com and activity search sites. Prices and availability are checked on those provider websites.</p>${statusPill('NO API KEY REQUIRED', true)}</div>
   <div class="card"><p class="eyebrow">AGENT37 CLOUD</p><h3>${ag.connected ? 'Cloud API configured' : 'Not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p>${statusPill(ag.connected ? 'VERIFY ON USE' : 'INSTANCE ID IS NOT AN API', ag.connected)}<div class="divider"></div><p class="card-sub">This project connects server-side to your Agent37 Cloud Hermes instance through its documented /v1/responses endpoint. The sk_live key never reaches the browser. Requests require a signed-in Firebase user.</p><button class="btn btn-outline btn-small" id="agentHelp">Connection details</button></div>
   <div class="card"><p class="eyebrow">SUPABASE PRIVATE STORAGE</p><h3>${CONFIG.storage?.signingEndpoint ? 'Signing URL configured' : 'File upload not configured'}</h3><p class="card-sub">Optional. Uses a Firebase-verified server function and a private bucket. Firebase Functions deployment may require a billing-enabled plan.</p></div>
   <div class="card"><p class="eyebrow">PUBLIC LIVE DATA</p><h3>Weather and exchange reference</h3><p class="card-sub">Open-Meteo provides forecast data without a key for non-commercial use. Frankfurter provides reference exchange rates, not instant card/cash quotes.</p><button class="btn btn-outline btn-small" data-action="test-public-apis">Test public data sources</button><div id="publicApiTest" class="card-sub" style="margin-top:8px"></div></div></div></div>`;
   $('#profileForm').addEventListener('submit', async e => { e.preventDefault(); profile = await saveProfile({ name: $('#profileName').value.trim(), homeAirport: $('#profileHome').value.trim(), currency: $('#profileCurrency').value, pace: $('#profilePace').value, interests: $('#profileInterests').value.split(',').map(x => x.trim()).filter(Boolean) }); updateUserChrome(); toast('Preferences saved.'); });
   $('#loginBtn').addEventListener('click', showLoginModal);
-  $('#signOutBtn').addEventListener('click', async () => { await signOutFirebase(); setCurrentUser(null); updateUserChrome(); toast('Signed out.'); renderSettings(); });
+  $('#signOutBtn').addEventListener('click', handleSignOut);
   $('#agentHelp').addEventListener('click', () => showModal({ eyebrow: 'AGENT37 CLOUD', title: 'How the secure connection works', body: `<p>Your browser sends a Firebase sign-in token to this website's server-side /api/agent37 route. The server verifies that token and calls your selected Hermes instance using the Agent37 Cloud API key stored in Vercel.</p><p>The Agent37 key is never sent to the browser. The instance must be running, its Hermes API gateway must be available, and its configured model/provider must be usable.</p><p>Do not paste the sk_live key into website code or chat messages.</p>`, actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] }));
 }
 
@@ -505,10 +547,57 @@ function authMessage(error) {
   const map = { 'auth/invalid-credential': 'Email or password is incorrect.', 'auth/user-not-found': 'No account with that email. Choose “Create account”.', 'auth/wrong-password': 'Email or password is incorrect.', 'auth/email-already-in-use': 'That email already has an account. Use “Sign in”.', 'auth/weak-password': 'Password must be at least 6 characters.', 'auth/invalid-email': 'Enter a valid email address.', 'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.', 'auth/operation-not-allowed': 'Email/password sign-in is not enabled in Firebase Console → Authentication → Sign-in method.', 'auth/unauthorized-domain': 'This website domain is not authorised in Firebase Console → Authentication → Settings → Authorized domains.', 'auth/popup-closed-by-user': 'Sign-in window was closed.', 'auth/network-request-failed': 'Network problem. Check your connection.' };
   return map[error?.code] || error?.message || 'Sign-in failed.';
 }
+async function finishFirebaseSignIn(result) {
+  setCurrentUser(result.user);
+  profile = await getProfile().catch(() => null);
+  closeModal();
+  updateUserChrome();
+  enterApp();
+  await routeTo('dashboard');
+  toast("You're signed in. Your dashboard is ready.");
+}
+async function performGoogleSignIn() {
+  try {
+    const result = await signInGoogle();
+    await finishFirebaseSignIn(result);
+  } catch (error) { toast(authMessage(error), 'error'); }
+}
 async function showLoginModal() {
-  showModal({ eyebrow: 'YOUR WAYFARER ACCOUNT', title: 'Sign in or create an account', body: `<form id="authForm"><div class="field"><label for="authEmail">Email</label><input class="input" id="authEmail" type="email" required placeholder="you@example.com"></div><div class="field" style="margin-top:10px"><label for="authPassword">Password</label><input class="input" id="authPassword" type="password" minlength="6" required placeholder="At least 6 characters"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn btn-primary" type="submit" data-auth-mode="signin">Sign in</button><button class="btn btn-outline" type="submit" data-auth-mode="signup">Create account</button><button class="btn btn-outline" id="googleLogin" type="button">Continue with Google</button></div></form>`, actions: [{ label: 'Close', class: 'btn-outline', onClick: closeModal }] });
-  $('#authForm').addEventListener('submit', async e => { e.preventDefault(); const mode = e.submitter?.dataset.authMode || 'signin'; try { const email = $('#authEmail').value, password = $('#authPassword').value; const result = mode === 'signup' ? await signUpEmail(email, password) : await signInEmail(email, password); setCurrentUser(result.user); closeModal(); updateUserChrome(); toast('Signed in.'); routeTo(currentRoute === 'planner' ? 'planner' : 'dashboard'); } catch (error) { toast(authMessage(error), 'error'); } });
-  $('#googleLogin').addEventListener('click', async () => { try { const result = await signInGoogle(); setCurrentUser(result.user); closeModal(); updateUserChrome(); routeTo(currentRoute === 'planner' ? 'planner' : 'dashboard'); } catch (error) { toast(authMessage(error), 'error'); } });
+  showModal({ eyebrow: 'YOUR WAYFARER ACCOUNT', title: 'Welcome back, traveller.', body: `<p class="card-sub" style="margin:0 0 15px">Sign in to sync your trips across devices and use your private AI workspace. You can keep exploring as a guest without an account.</p><form id="authForm"><div class="field"><label for="authEmail">Email address</label><input class="input" id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com"></div><div class="field" style="margin-top:11px"><label for="authPassword">Password</label><input class="input" id="authPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="At least 6 characters"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px"><button class="btn btn-primary" type="submit" data-auth-mode="signin">Sign in</button><button class="btn btn-outline" type="submit" data-auth-mode="signup">Create account</button></div><div class="auth-divider"><span>OR</span></div><button class="btn btn-google" id="googleLogin" type="button" style="width:100%;justify-content:center"><span class="google-g">G</span> Sign in with Google</button></form><div class="detail-note">Guest mode remains available. Your guest workspace is saved locally in this browser and is not automatically synced to a new account.</div>`, actions: [{ label: 'Continue as guest', class: 'btn-outline', onClick: () => { closeModal(); startGuestSession(); } }, { label: 'Close', class: 'btn-outline', onClick: closeModal }] });
+  $('#authForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const submitter = e.submitter; const mode = submitter?.dataset.authMode || 'signin';
+    const buttons = $$('button', $('#authForm')); buttons.forEach(button => button.disabled = true);
+    try {
+      const email = $('#authEmail').value.trim(), password = $('#authPassword').value;
+      const result = mode === 'signup' ? await signUpEmail(email, password) : await signInEmail(email, password);
+      await finishFirebaseSignIn(result);
+    } catch (error) { toast(authMessage(error), 'error'); }
+    finally { buttons.forEach(button => button.disabled = false); }
+  });
+  $('#googleLogin').addEventListener('click', performGoogleSignIn);
+}
+async function startGuestSession() {
+  if (!currentUser().isGuest) {
+    try { await signOutFirebase(); } catch (error) { toast(authMessage(error), 'error'); return; }
+  }
+  setCurrentUser(null);
+  profile = null;
+  enterApp();
+  await routeTo('dashboard');
+  toast('Guest workspace opened. Your changes are saved in this browser.');
+}
+async function handleSignOut() {
+  const wasGuest = currentUser().isGuest;
+  try { if (!wasGuest) await signOutFirebase(); }
+  catch (error) { toast(authMessage(error), 'error'); return; }
+  setCurrentUser(null);
+  profile = await getProfile().catch(() => null);
+  updateUserChrome();
+  location.hash = '#landing';
+  syncView();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  toast(wasGuest ? 'Returned to the WAYFARER home page.' : 'Signed out. You are back on the WAYFARER home page.');
 }
 
 async function handleDestinationSave(placeId) {
@@ -556,9 +645,69 @@ function websiteHelp(message) {
 function renderHelpMessages() { $('#helpMessages').innerHTML = helpMessages.map(m => `<div class="chat-bubble ${m.role}">${escapeHTML(m.text)}</div>`).join(''); $('#helpMessages').scrollTop = $('#helpMessages').scrollHeight; }
 function updateUserChrome() {
   const user = currentUser(); const initial = (user.displayName || 'T').trim()[0].toUpperCase();
-  $('#sideUserName').textContent = user.displayName || 'Traveller'; $('#sideUserEmail').textContent = user.isGuest ? 'Local workspace · not signed in' : user.email; $('#sideAvatar').textContent = initial; $('#topAvatar').textContent = initial;
-  const status = agent37ConnectionStatus(); $('#agentStatusMini').textContent = status.connected ? 'Bridge configured · verify on use' : 'Agent37 not connected'; $('#agentDot').style.background = status.connected ? '#9A6718' : '#87934c';
+  $('#sideUserName').textContent = user.displayName || 'Traveller'; $('#sideUserEmail').textContent = user.isGuest ? 'Guest workspace · saved locally' : user.email; $('#sideAvatar').textContent = initial; $('#topAvatar').textContent = initial;
+  const signOut = $('#topSignOut'); if (signOut) signOut.textContent = user.isGuest ? 'Exit guest' : 'Sign out';
+  const status = agent37ConnectionStatus(); $('#agentStatusMini').textContent = status.connected ? 'Bridge configured · verify on use' : 'Agent37 not connected'; $('#agentDot').style.background = status.connected ? '#00a9b8' : '#879aa3';
 }
+function showFeatureDetail(key) {
+  const feature = FEATURE_DETAILS[key];
+  if (!feature) return;
+  const paragraphs = feature.paragraphs.map(p => `<p>${escapeHTML(p)}</p>`).join('');
+  showModal({ eyebrow: 'WAYFARER FEATURE GUIDE', title: feature.title, body: `<p class="card-sub" style="font-size:12px;margin:0 0 13px">${escapeHTML(feature.intro)}</p>${paragraphs}<div class="detail-note"><strong>What to know:</strong> ${escapeHTML(feature.note)}</div>`, actions: [{ label: 'Open this feature ↗', class: 'btn-primary', onClick: () => { closeModal(); enterApp(); routeTo(feature.route); } }, { label: 'Close', class: 'btn-outline', onClick: closeModal }] });
+}
+function updateFeaturePreview(key) {
+  const item = FEATURE_PREVIEWS[key]; if (!item) return;
+  $$('.preview-tab').forEach(tab => { const active = tab.dataset.featureTab === key; tab.classList.toggle('active', active); tab.setAttribute('aria-selected', String(active)); });
+  const target = $('#featurePreview');
+  target.innerHTML = `<div class="preview-content-icon">${item.icon}</div><div><p class="eyebrow">${item.kicker}</p><h3>${item.title}</h3><p>${item.body}</p><button class="btn btn-primary btn-small" data-preview-route="${item.route}">${item.cta}</button></div><div class="preview-mini-map"><span class="map-pin pin-one">⌖</span><span class="map-pin pin-two">✦</span><span class="map-route"></span><span class="map-caption">${key.toUpperCase()} / PLAN / REVIEW</span></div>`;
+}
+
+const TOUR_STEPS = [
+  { route: 'dashboard', target: '.dash-hero', title: 'Your travel command centre', body: 'This is your overview. It brings your trip count, completed AI tasks, saved places and budget totals together, then points you toward the next useful action. The journey cards below show only trips you have actually created or saved.', tip: 'Start here whenever you return to WAYFARER.' },
+  { route: 'explore', target: '#destinationForm', title: 'Discover destinations', body: 'Search a city or place name to retrieve real geocoding results. Open a result to check its coordinates, save it to your wishlist, use it to start a trip or request weather context. Results are sourced live rather than selected from a made-up catalogue.', tip: 'Try a city name such as Manali, Jaipur or Kochi.' },
+  { route: 'planner', target: '#plannerForm', title: 'Plan in natural language', body: 'Describe the trip you have in mind: route, dates, travellers, budget and interests. When Agent37 is connected, the assistant can return an itinerary broken into days and time periods, with an estimated budget. Review the proposal before saving it.', tip: 'AI requests require a signed-in Firebase account and a configured Agent37 service.' },
+  { route: 'workspace', target: '#workspaceForm', title: 'Your AI workspace', body: 'This is the command area for travel-related instructions. It sends requests to your own Agent37 Cloud Hermes instance through a secure server route. The execution history records actual responses; the app does not fake a successful task or silently edit your website.', tip: 'Guests can explore this page, but sending private Agent37 requests requires sign-in.' },
+  { route: 'trips', target: '.page-head', title: 'Keep every trip organised', body: 'Create and manage trip records with a destination, dates, traveller count, status, itinerary and budget. Open a trip to edit the details, review its plan, add recorded expenses or export a calendar file when available.', tip: 'Guest trip data is local to this browser. Sign in to use your account workspace.' },
+  { route: 'flights', target: '#providerSearchForm', title: 'Compare flight options', body: 'Enter the origin, destination, departure date, optional return date and traveller count. WAYFARER prepares useful external searches so you can compare real fares and schedules on provider websites.', tip: 'Final fares, baggage rules and availability belong to the provider, not WAYFARER.' },
+  { route: 'hotels', target: '#providerSearchForm', title: 'Find a place to stay', body: 'Search using a destination, check-in and check-out dates and adult count. The app opens external hotel searches where you can review room details, taxes, location, cancellation policies and total prices.', tip: 'Always verify the final booking terms on the provider website.' },
+  { route: 'experiences', target: '#providerSearchForm', title: 'Add experiences to the plan', body: 'Choose a city and the type of activity you want to explore, such as adventure, food, culture or guided tours. WAYFARER creates a contextual search to help you continue your research on external websites.', tip: 'Check activity availability, suitability and safety information with the organiser.' },
+  { route: 'budget', target: '.page-head', title: 'Understand your trip budget', body: 'Select a trip to review its estimated cost breakdown and compare it with the budget you set. Add expenses you have actually paid or recorded to see the difference between an estimate and recorded spending.', tip: 'Estimates are planning aids, not live quotes or guaranteed prices.' },
+  { route: 'bookings', target: '#documentUploadForm', title: 'Keep confirmations together', body: 'Record details from a real booking or upload supported confirmations when private storage is configured. This page is a document organiser; it does not book travel or invent reservation references.', tip: 'Private cloud document uploads need sign-in and backend storage configuration.' },
+  { route: 'history', target: '.page-head', title: 'Review AI history', body: 'Inspect the instructions you sent, real assistant replies and task execution logs. This gives you a transparent record of what happened rather than a list of sample or simulated actions.', tip: 'No entry is added just because you opened a feature.' },
+  { route: 'wishlist', target: '.page-head', title: 'Save places for later', body: 'Your wishlist is a shortlist of destinations you saved from Explore. Return to a place, check its weather again or use it to start a trip when you are ready.', tip: 'Useful when you are comparing ideas before choosing dates.' },
+  { route: 'support', target: '#supportForm', title: 'Save travel support notes', body: 'Capture a question, disruption, accessibility concern or other travel note with its topic and details. Your notes stay in the workspace for reference; this form is not a live helpdesk or supplier ticket.', tip: 'Keep the details here, then contact the relevant provider for urgent assistance.' },
+  { route: 'settings', target: '#profileForm', title: 'Personalise your workspace', body: 'Set a display name, home city or airport, preferred currency, travel pace and interests. Review Firebase, Agent37, storage and public data integration status from the same settings page.', tip: 'Your profile helps provide useful context, but you stay in control of what you share.' }
+];
+let activeTourIndex = 0;
+let tourTarget = null;
+function closeWebsiteTour() {
+  tourTarget?.classList.remove('tour-focus');
+  tourTarget = null;
+  const layer = $('#tourLayer');
+  if (layer) { layer.classList.remove('open'); layer.setAttribute('aria-hidden', 'true'); layer.innerHTML = ''; }
+}
+async function showTourStep(index) {
+  if (index < 0) index = 0;
+  if (index >= TOUR_STEPS.length) { closeWebsiteTour(); toast('You have completed the WAYFARER guided tour. Explore any feature whenever you are ready.'); return; }
+  activeTourIndex = index;
+  const step = TOUR_STEPS[index];
+  if (document.body.dataset.view === 'landing') enterApp();
+  await routeTo(step.route);
+  await new Promise(resolve => setTimeout(resolve, 90));
+  tourTarget?.classList.remove('tour-focus');
+  tourTarget = document.querySelector(step.target) || $('#pageContent');
+  tourTarget?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  tourTarget?.classList.add('tour-focus');
+  const layer = $('#tourLayer');
+  layer.classList.add('open'); layer.setAttribute('aria-hidden', 'false');
+  const pct = Math.round(((index + 1) / TOUR_STEPS.length) * 100);
+  layer.innerHTML = `<section class="tour-card" role="dialog" aria-modal="true" aria-labelledby="tourTitle"><div class="tour-card-top"><span>WAYFARER WEBSITE GUIDE · ${String(index + 1).padStart(2,'0')} / ${String(TOUR_STEPS.length).padStart(2,'0')}</span><button type="button" data-tour-close aria-label="Close tour">×</button></div><div class="tour-progress"><span style="width:${pct}%"></span></div><h3 id="tourTitle">${escapeHTML(step.title)}</h3><p>${escapeHTML(step.body)}</p><p class="tour-tip">${escapeHTML(step.tip)}</p><div class="tour-actions"><button class="btn btn-outline btn-small" data-tour-back ${index === 0 ? 'disabled' : ''}>← Back</button><div><button class="btn btn-outline btn-small" data-tour-close>Skip tour</button><button class="btn btn-primary btn-small" data-tour-next>${index === TOUR_STEPS.length - 1 ? 'Finish tour ✓' : 'Next feature →'}</button></div></div></section>`;
+  $('[data-tour-next]', layer)?.addEventListener('click', () => showTourStep(activeTourIndex + 1));
+  $('[data-tour-back]', layer)?.addEventListener('click', () => showTourStep(activeTourIndex - 1));
+  $$('[data-tour-close]', layer).forEach(button => button.addEventListener('click', closeWebsiteTour));
+}
+function startWebsiteTour() { closeWebsiteTour(); showTourStep(0).catch(error => { closeWebsiteTour(); toast(`The website tour could not open: ${error.message}`, 'error'); }); }
+
 function toggleTheme() { const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = next; try { localStorage.setItem('wayfarer.theme', next); } catch { /* ignore */ } $('#themeToggle').textContent = next === 'dark' ? '☾' : '☼'; }
 
 // Delegated page actions.
@@ -574,7 +723,13 @@ document.addEventListener('click', async event => {
   const savePlan = event.target.closest('[data-save-plan]'); if (savePlan) { confirmSavePlan(Number(savePlan.dataset.savePlan)); return; }
   const planSearch = event.target.closest('[data-plan-search]'); if (planSearch) { const plan = plannerMessages[Number(planSearch.dataset.planIdx)]?.plan; if (plan) openSearchFor(planSearch.dataset.planSearch, plan); return; }
   const landingChip = event.target.closest('[data-landing-search]'); if (landingChip) { enterApp(); routeTo('explore'); $('#destinationSearch').value = landingChip.dataset.landingSearch; searchDestinations(landingChip.dataset.landingSearch); return; }
-  const landingLogin = event.target.closest('[data-landing-login]'); if (landingLogin) { enterApp(); showLoginModal(); return; }
+  const landingLogin = event.target.closest('[data-landing-login]'); if (landingLogin) { showLoginModal(); return; }
+  const guestStart = event.target.closest('[data-guest-start]'); if (guestStart) { startGuestSession(); return; }
+  const landingGoogle = event.target.closest('[data-landing-google]'); if (landingGoogle) { performGoogleSignIn(); return; }
+  const featureCard = event.target.closest('[data-feature]'); if (featureCard) { showFeatureDetail(featureCard.dataset.feature); return; }
+  const featureTab = event.target.closest('[data-feature-tab]'); if (featureTab) { updateFeaturePreview(featureTab.dataset.featureTab); return; }
+  const previewRoute = event.target.closest('[data-preview-route]'); if (previewRoute) { enterApp(); routeTo(previewRoute.dataset.previewRoute); return; }
+  const landingTour = event.target.closest('[data-landing-tour]'); if (landingTour) { startWebsiteTour(); return; }
   const helpPrompt = event.target.closest('[data-help]'); if (helpPrompt) { sendHelpMessage(helpPrompt.dataset.help); return; }
   const newTrip = event.target.closest('[data-action="new-trip"]'); if (newTrip) { showNewTripForm(); return; }
   const apiTest = event.target.closest('[data-action="test-public-apis"]'); if (apiTest) {
@@ -586,13 +741,16 @@ document.addEventListener('click', async event => {
 
 $('#modalClose').addEventListener('click', closeModal);
 $('#themeToggle').addEventListener('click', toggleTheme);
+$('#topSignOut').addEventListener('click', handleSignOut);
+$('#guideTourBtn').addEventListener('click', startWebsiteTour);
+$('#sidebarTourBtn').addEventListener('click', startWebsiteTour);
 $('#mobileMenu').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
 $('#helpAssistant').addEventListener('click', () => { $('#helpDrawer').classList.add('open'); $('#helpDrawer').setAttribute('aria-hidden','false'); $('#helpInput').focus(); });
 $('#closeHelp').addEventListener('click', () => { $('#helpDrawer').classList.remove('open'); $('#helpDrawer').setAttribute('aria-hidden','true'); });
 $('#helpForm').addEventListener('submit', e => { e.preventDefault(); sendHelpMessage($('#helpInput').value); });
 $('#notificationBtn').addEventListener('click', async () => { const items = await listItems('notifications'); showModal({ eyebrow: 'YOUR NOTIFICATIONS', title: 'Recent updates', body: items.length ? items.map(n => `<div class="budget-row"><span><strong>${escapeHTML(n.title)}</strong><br><small>${escapeHTML(n.body)}</small></span><small>${new Date(n.createdAt).toLocaleDateString('en-IN')}</small></div>`).join('') : '<p>No notifications yet.</p>', actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] }); });
 $('#globalSearch').addEventListener('keydown', event => { if (event.key === 'Enter') { const query = event.target.value.toLowerCase(); const routes = [['trip','trips'],['flight','flights'],['hotel','hotels'],['stay','hotels'],['experience','experiences'],['budget','budget'],['booking','bookings'],['workspace','workspace'],['destination','explore']]; const found = routes.find(([term]) => query.includes(term)); routeTo(found ? found[1] : 'explore'); if (currentRoute === 'explore' && query.length >= 2) { $('#destinationSearch').value = event.target.value; searchDestinations(event.target.value); } } });
-document.addEventListener('keydown', event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); $('#globalSearch').focus(); } if (event.key === 'Escape') closeMobileNav(); });
+document.addEventListener('keydown', event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); $('#globalSearch').focus(); } if (event.key === 'Escape') { closeMobileNav(); if ($('#tourLayer')?.classList.contains('open')) closeWebsiteTour(); } });
 
 // Landing page <-> app view, driven by the URL hash (#app shows the app).
 function syncView() { const landing = !location.hash || location.hash === '#landing'; document.body.dataset.view = landing ? 'landing' : 'app'; if (landing) window.scrollTo(0, 0); }
@@ -607,7 +765,7 @@ async function boot() {
     const fb = await initFirebase();
     firebaseReady = fb.enabled;
     if (firebaseReady) {
-      // Wait for Firebase's initial auth state before selecting the user's data namespace.
+      // Resolve the first Firebase auth event before selecting the account data namespace.
       await new Promise(resolve => {
         let firstState = true;
         onAuthChange(user => {
@@ -618,13 +776,18 @@ async function boot() {
         });
       });
     } else {
-      // Do not trust a stale localStorage UID when Firebase is not configured.
+      // Never trust a stale local UID when Firebase is not configured.
       setCurrentUser(null);
     }
     profile = await getProfile();
     updateUserChrome();
     await refreshAgent37Status(); updateUserChrome();
-    routeTo('dashboard');
+    if (!currentUser().isGuest || location.hash === '#app') {
+      enterApp();
+      await routeTo('dashboard');
+    } else {
+      syncView();
+    }
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./service-worker.js').catch(() => {});
   } catch (error) { console.error(error); toast(`Startup issue: ${error.message}`, 'error'); }
 }

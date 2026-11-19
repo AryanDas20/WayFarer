@@ -4,6 +4,11 @@ WAYFARER AI is a responsive travel-planning website built with HTML, CSS and van
 
 ## What this version does
 
+- Interactive public landing page with email sign-in, Google sign-in and guest entry.
+- Guest workspace for local trip planning, destination discovery, saved places, budgets and travel notes. Guest data stays in the current browser and is not automatically synced to a new account.
+- Authenticated dashboard with a feature guide, account sign-out and a 14-step guided tour that navigates to the real workspace sections.
+- Responsive ocean-blue / cyan visual system with a dotted background motif and detailed, clickable feature explanations.
+
 - Responsive WAYFARER AI interface with light/dark theme.
 - Firebase email/password and Google sign-in (after Firebase setup).
 - Firestore-backed user profiles, trips, saved places, notes and history, subject to the supplied security rules.
@@ -15,6 +20,12 @@ WAYFARER AI is a responsive travel-planning website built with HTML, CSS and van
 - Flight searches open external Google Flights and Skyscanner pages.
 - Hotel searches open external Google Travel and Booking.com pages.
 - Activity searches open external Google and GetYourGuide pages.
+
+## Guest and account access
+
+Visitors can open the workspace as a guest. Guest-created trips, saved places, profile preferences and support notes are stored locally in that browser. They are not uploaded or merged automatically when the visitor later signs in. To sync account data across devices, sign in with Firebase.
+
+Private Agent37 requests require an authenticated Firebase ID token and a configured Agent37 Cloud service. Private document uploads require sign-in and the optional storage signing backend. Guest users can still explore those sections and use the other local planning tools.
 
 ## Important limitations and honest behaviour
 

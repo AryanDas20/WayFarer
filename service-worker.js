@@ -1,4 +1,4 @@
-const CACHE = 'wayfarer-live-v4';
+const CACHE = 'wayfarer-live-v5';
 const SHELL = ['./','./index.html','./styles.css','./styles-extra.css','./js/plan.js','./theme-init.js','./js/app.js','./js/config.js','./js/firebase.js','./js/store.js','./js/agent37Adapter.js','./js/agent37Tools.js','./js/providers.js','./js/storage.js','./manifest.webmanifest'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())); });

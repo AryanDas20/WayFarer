@@ -95,6 +95,7 @@ export default async function handler(req, res) {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 55_000);
+  timer.unref?.();
   res.on?.('close', () => controller.abort());
   try {
     const uid = await verifyFirebaseUser(req);
