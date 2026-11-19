@@ -1,10 +1,10 @@
 import { CONFIG } from './config.js';
 import { initFirebase, onAuthChange, signInEmail, signUpEmail, signInGoogle, signOutFirebase, firebaseStatus } from './firebase.js';
 import { purgeLegacyDemoRecords, setCurrentUser, getCurrentUser, saveItem, listItems, deleteItem, saveProfile, getProfile } from './store.js';
-import { agent37ConnectionStatus, sendToAgent37 } from './agent37Adapter.js';
+import { agent37ConnectionStatus, refreshAgent37Status, sendToAgent37 } from './agent37Adapter.js';
 import { TravelProvider } from './providers.js';
 import { uploadPrivateFile, getPrivateFileUrl } from './storage.js';
-import { normalizeAgentAction, AGENT37_TOOL_NAMES } from './agent37Tools.js';
+
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -100,7 +100,7 @@ async function renderDashboard() {
     ${currentTrips.length ? `<div class="grid">${currentTrips.slice(0,3).map(tripCard).join('')}</div>` : emptyState('⌖','No trips saved yet','Create a trip with your own dates and destination. The app will not prefill sample itineraries.','<button class="btn btn-primary" data-action="new-trip">Create a trip</button>')}
     <div class="section-head"><div><h2>Travel search partners</h2><p>Open external providers to check current prices and availability.</p></div></div>
     <div class="grid grid-3"><button class="quick-link" data-route="flights"><div><strong>Search flights</strong><small>Opens external flight search providers.</small></div><span>✈</span></button><button class="quick-link" data-route="hotels"><div><strong>Search stays</strong><small>Compare stays on external provider sites.</small></div><span>⌂</span></button><button class="quick-link" data-route="experiences"><div><strong>Find experiences</strong><small>Find activities on external search sites.</small></div><span>◇</span></button></div>
-    <div class="grid grid-2" style="margin-top:16px"><div class="card"><p class="eyebrow">AGENT STATUS</p><h3>${ag.connected ? 'Agent bridge configured' : 'Agent37 not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p><button class="btn btn-outline btn-small" data-route="settings">Integration settings ↗</button></div><div class="card"><p class="eyebrow">DATA POLICY</p><h3>No invented travel results</h3><p class="card-sub">WAYFARER never invents fares or hotel prices. External providers show their own live availability and final terms.</p></div></div>`;
+    <div class="grid grid-2" style="margin-top:16px"><div class="card"><p class="eyebrow">AGENT STATUS</p><h3>${ag.connected ? 'Agent37 Cloud configured' : 'Agent37 not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p><button class="btn btn-outline btn-small" data-route="settings">Integration settings ↗</button></div><div class="card"><p class="eyebrow">DATA POLICY</p><h3>No invented travel results</h3><p class="card-sub">WAYFARER never invents fares or hotel prices. External providers show their own live availability and final terms.</p></div></div>`;
 }
 function tripCard(trip) {
   return `<article class="card trip-card"><div class="trip-cover"></div><div class="trip-data"><span class="pill">${escapeHTML(trip.status || 'draft')}</span><h3>${escapeHTML(trip.title || trip.destination)}</h3><p>${escapeHTML(trip.destination)} · ${dateFmt(trip.startDate)} — ${dateFmt(trip.endDate)}</p><div class="trip-stats"><span>♙ ${Number(trip.travellers || 1)} travellers</span><span>◎ Budget ${trip.budget ? money(trip.budget) : 'not set'}</span><span>◷ ${trip.days?.length || 0} itinerary days</span></div></div><button class="btn btn-primary btn-small" data-open-trip="${escapeHTML(trip.id)}">Open trip ↗</button></article>`;
@@ -127,8 +127,8 @@ function destinationCard(place) {
 
 async function renderPlanner() {
   const status = agent37ConnectionStatus();
-  content.innerHTML = `${pageHead('CONVERSATIONAL TRIP PLANNER','Start with what matters.','Talk naturally about your trip. The Agent37 connection is used only when an actual supported bridge is configured.')}
-  <div class="chat-layout"><section class="card chat-panel"><div class="chat-panel-head"><div class="assistant-avatar">✳</div><div><h3>Travel Concierge</h3><small>${status.connected ? 'Agent37 bridge configured · connection verified on request' : 'Agent37 Personal not connected to this website'}</small></div>${statusPill(status.connected ? 'BRIDGE CONFIGURED' : 'NOT CONNECTED', false)}</div>
+  content.innerHTML = `${pageHead('CONVERSATIONAL TRIP PLANNER','Start with what matters.','Talk naturally about your trip with your Agent37 Cloud Hermes instance.')}
+  <div class="chat-layout"><section class="card chat-panel"><div class="chat-panel-head"><div class="assistant-avatar">✳</div><div><h3>Travel Concierge</h3><small>${status.connected ? 'Agent37 Cloud configured · live connection verified when you send' : 'Agent37 Cloud not configured'}</small></div>${statusPill(status.connected ? 'CLOUD API CONFIGURED' : 'NOT CONNECTED', false)}</div>
   <div class="chat-scroll" id="plannerMessages">${plannerMessages.map(m=>`<div class="chat-bubble ${m.role}">${escapeHTML(m.text)}</div>`).join('') || `<div class="chat-bubble assistant">I can help organise travel details. You can search live city data and weather, then open external websites to compare flights, stays and activities.</div>`}</div>
   <div class="suggestions"><button data-planner-prompt="What information do you need to plan a trip for me?">What do you need?</button><button data-planner-prompt="Help me compare live flight and hotel options.">Compare travel options</button><button data-planner-prompt="Explain how to save a trip in WAYFARER AI.">How do I save a trip?</button></div>
   <form class="chat-compose" id="plannerForm"><button class="icon-btn" id="plannerVoice" type="button" aria-label="Use voice input">⌁</button><input id="plannerInput" placeholder="Ask your travel concierge…" autocomplete="off"><button type="submit" aria-label="Send message">↑</button></form></section>
@@ -145,17 +145,13 @@ async function sendAgentMessage(message, mode = 'planner') {
   if (messagesEl) { messagesEl.innerHTML = state.map(m => `<div class="chat-bubble ${m.role}">${escapeHTML(m.text)}</div>`).join(''); }
   const input = mode === 'planner' ? $('#plannerInput') : $('#helpInput'); if (input) input.value = '';
   if (!agent37ConnectionStatus().connected) {
-    const msg = 'Agent37 Personal is not connected to this website yet. The instance ID alone is not an embeddable chat connection. Open Settings → Agent37 Personal and follow the documented integration steps. I have not generated a fake AI response.';
+    const msg = 'Agent37 Cloud is not configured on the server. Check AGENT37_API_KEY, AGENT37_INSTANCE_ID and AGENT37_BASE_URL in Vercel, then redeploy. No fake response was generated.';
     state.push({ role: 'assistant', text: msg });
   } else {
     try {
       const trips = await listItems('trips');
-      const response = await sendToAgent37({ message: text, conversation: state.slice(-12), profile, trip: trips[0] || null, tools: AGENT37_TOOL_NAMES });
+      const response = await sendToAgent37({ message: text, profile, trip: trips[0] || null });
       state.push({ role: 'assistant', text: response.reply });
-      for (const proposed of response.actions || []) {
-        const safe = normalizeAgentAction(proposed);
-        if (safe) { await createApprovedAgentTask(text, response.reply, safe); break; }
-      }
     } catch (error) {
       state.push({ role: 'assistant', text: `Agent37 request failed: ${error.message}. No AI-generated result or action has been substituted.` });
     }
@@ -166,12 +162,12 @@ async function sendAgentMessage(message, mode = 'planner') {
 
 async function renderWorkspace() {
   const tasks = await listItems('tasks'); const ag = agent37ConnectionStatus();
-  content.innerHTML = `${pageHead('YOUR AI COMMAND CENTRE','Tell your agent what to do.','The workspace sends your instruction to the connected Agent37 Personal bridge. Website changes require your approval.')}
-  <div class="grid grid-2" style="margin-bottom:16px"><div class="card"><p class="eyebrow">AGENT STATUS</p><h3>${ag.connected ? 'Agent37 bridge configured' : 'Agent37 is not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p>${statusPill(ag.connected ? 'VERIFY ON FIRST REQUEST' : 'NO FAKE FALLBACK', false)} <button class="btn btn-outline btn-small" data-route="settings">Settings ↗</button></div><div class="card"><p class="eyebrow">APPROVAL POLICY</p><h3>You stay in control.</h3><p class="card-sub">Trip creation, trip edits and checklist creation are previewed before the site saves them. This website cannot book or cancel travel inventory without an actual supplier booking integration.</p></div></div>
+  content.innerHTML = `${pageHead('YOUR AI COMMAND CENTRE','Tell your agent what to do.','The workspace sends your instruction to your Agent37 Cloud Hermes instance. Website changes are not applied automatically.')}
+  <div class="grid grid-2" style="margin-bottom:16px"><div class="card"><p class="eyebrow">AGENT STATUS</p><h3>${ag.connected ? 'Agent37 Cloud configured' : 'Agent37 is not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p>${statusPill(ag.connected ? 'VERIFY ON FIRST REQUEST' : 'NO FAKE FALLBACK', false)} <button class="btn btn-outline btn-small" data-route="settings">Settings ↗</button></div><div class="card"><p class="eyebrow">APPROVAL POLICY</p><h3>You stay in control.</h3><p class="card-sub">The AI can advise and plan in chat. It does not automatically modify saved trips or make bookings. This website cannot book or cancel travel inventory without a supplier booking integration.</p></div></div>
   <section class="workspace-panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px"><div><p class="eyebrow">NATURAL LANGUAGE TASKS</p><h3 style="font:600 27px 'Cormorant Garamond',serif;color:var(--brown);margin:0">Your travel operations desk</h3></div><span class="pill">✳ Agent Workspace</span></div>
   <form id="workspaceForm"><div class="workspace-composer"><textarea id="workspaceInput" placeholder="Example: Create a trip for my chosen destination using the dates and budget I provide…" aria-label="Describe a task"></textarea><div style="display:grid;gap:6px"><button class="icon-btn" id="workspaceVoice" type="button" aria-label="Use voice input">⌁</button><button class="btn btn-primary" type="submit">Send to Agent37 ↗</button></div></div><div class="workspace-tools"><span class="muted" style="font-size:10px">No local demo agent · no simulated tool results</span><span class="muted" style="font-size:10px">Voice input where supported</span></div></form></section>
-  <div class="section-head"><div><h2>Execution history</h2><p>Only real messages and user-approved website actions are recorded.</p></div><button class="btn btn-outline btn-small" data-route="history">Full history ↗</button></div>
-  ${tasks.length ? `<div class="grid">${tasks.map(taskCard).join('')}</div>` : emptyState('✣','No AI tasks yet','Connect Agent37 Personal and send your first task.')}`;
+  <div class="section-head"><div><h2>Execution history</h2><p>Only real Agent37 responses and user-created records are recorded.</p></div><button class="btn btn-outline btn-small" data-route="history">Full history ↗</button></div>
+  ${tasks.length ? `<div class="grid">${tasks.map(taskCard).join('')}</div>` : emptyState('✣','No AI tasks yet','Sign in and send your first task to Agent37 Cloud.')}`;
   $('#workspaceForm').addEventListener('submit', async e => { e.preventDefault(); await createWorkspaceTask($('#workspaceInput').value); });
   $('#workspaceVoice').addEventListener('click', () => startVoiceInput($('#workspaceInput')));
 }
@@ -180,20 +176,18 @@ function taskCard(task) {
 }
 async function createWorkspaceTask(instruction) {
   const text = String(instruction || '').trim(); if (!text) return;
-  if (!agent37ConnectionStatus().connected) return toast('Agent37 Personal is not connected. No task was fabricated.', 'error');
+  if (!agent37ConnectionStatus().connected) return toast('Agent37 Cloud is not configured. Check Vercel environment variables.', 'error');
   try {
     const trips = await listItems('trips');
-    const response = await sendToAgent37({ message: `Plan this WAYFARER task. Return at most one structured action from the allowed tools. Do not claim it was executed. User request: ${text}`, conversation: [], profile, trip: trips[0] || null, tools: AGENT37_TOOL_NAMES });
-    const normalized = (response.actions || []).map(normalizeAgentAction).find(Boolean) || null;
-    const task = { id: id('task'), title: normalized ? `Review ${normalized.name.replaceAll('_',' ')}` : 'Agent37 response', instruction: text, reply: response.reply, status: normalized ? 'awaiting-approval' : 'completed', action: normalized, source: 'Agent37 Personal bridge', createdAt: new Date().toISOString(), log: [{ at: new Date().toISOString(), event: normalized ? 'Agent37 proposed an allowlisted action; waiting for your approval.' : 'Agent37 replied; no website changes were proposed.' }] };
+    const response = await sendToAgent37({ message: `Help me plan this WAYFARER task. Do not claim any website changes were made. Explain the recommended next steps and ask for approval before suggesting an action. User request: ${text}`, profile, trip: trips[0] || null });
+    const task = { id: id('task'), title: 'Agent37 response', instruction: text, reply: response.reply, status: 'completed', action: null, source: 'Agent37 Cloud Hermes', createdAt: new Date().toISOString(), log: [{ at: new Date().toISOString(), event: 'Agent37 returned a real response. No website action was automatically executed.' }] };
     await saveItem('tasks', task);
-    if (normalized) { pendingTask = task; showTaskApproval(task); }
-    else showModal({ eyebrow: 'AGENT37 RESPONSE', title: 'Your agent replied', body: `<p>${escapeHTML(response.reply)}</p><p class="card-sub">No website action was requested or executed.</p>`, actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] });
+    showModal({ eyebrow: 'AGENT37 RESPONSE', title: 'Your agent replied', body: `<p>${escapeHTML(response.reply)}</p><p class="card-sub">No website changes were automatically executed.</p>`, actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] });
     if (currentRoute === 'workspace') renderWorkspace();
   } catch (error) { toast(`Agent task failed: ${error.message}`, 'error'); }
 }
 async function createApprovedAgentTask(instruction, reply, action) {
-  const task = { id: id('task'), title: `Review ${action.name.replaceAll('_',' ')}`, instruction, reply, status: 'awaiting-approval', action, source: 'Agent37 Personal bridge', createdAt: new Date().toISOString(), log: [{ at: new Date().toISOString(), event: 'Agent37 proposed an allowlisted action; waiting for user approval.' }] };
+  const task = { id: id('task'), title: `Review ${action.name.replaceAll('_',' ')}`, instruction, reply, status: 'awaiting-approval', action, source: 'Agent37 Cloud Hermes', createdAt: new Date().toISOString(), log: [{ at: new Date().toISOString(), event: 'Agent37 proposed an allowlisted action; waiting for user approval.' }] };
   await saveItem('tasks', task); pendingTask = task; showTaskApproval(task);
 }
 function showTaskApproval(task) {
@@ -364,15 +358,15 @@ async function renderSettings() {
   const user = currentUser(); profile = await getProfile(); const fb = firebaseStatus(); const ag = agent37ConnectionStatus();
   content.innerHTML = `${pageHead('YOUR ACCOUNT & INTEGRATIONS','Set up your travel workspace.','Connect your own services. Private API secrets never belong in browser configuration.')}
   <div class="grid grid-2"><form class="card" id="profileForm"><p class="eyebrow">TRAVELLER PROFILE</p><h3>Your preferences</h3><div class="form-grid" style="margin-top:15px"><div class="field"><label for="profileName">Display name</label><input class="input" id="profileName" value="${escapeHTML(profile.name || user.displayName)}"></div><div class="field"><label for="profileHome">Home city / airport</label><input class="input" id="profileHome" value="${escapeHTML(profile.homeAirport || '')}" placeholder="Enter your own home city"></div><div class="field"><label for="profileCurrency">Preferred currency</label><select class="select" id="profileCurrency"><option value="INR" ${profile.currency === 'INR' ? 'selected' : ''}>INR</option><option value="USD" ${profile.currency === 'USD' ? 'selected' : ''}>USD</option><option value="EUR" ${profile.currency === 'EUR' ? 'selected' : ''}>EUR</option></select></div><div class="field"><label for="profilePace">Travel pace</label><select class="select" id="profilePace"><option ${profile.pace === 'Balanced' ? 'selected' : ''}>Balanced</option><option ${profile.pace === 'Slow and relaxed' ? 'selected' : ''}>Slow and relaxed</option><option ${profile.pace === 'See it all' ? 'selected' : ''}>See it all</option><option ${profile.pace === 'Adventure-led' ? 'selected' : ''}>Adventure-led</option></select></div></div><div class="field" style="margin-top:13px"><label for="profileInterests">Interests (comma separated)</label><input class="input" id="profileInterests" value="${escapeHTML((profile.interests || []).join(', '))}" placeholder="Enter your interests"></div><button class="btn btn-primary" style="margin-top:15px" type="submit">Save preferences</button></form>
-  <div class="grid"><div class="card"><p class="eyebrow">FIREBASE</p><h3>${fb.enabled ? 'Firebase initialized' : 'Firebase not configured'}</h3><p class="card-sub">${fb.enabled ? 'Authentication and Firestore SDK are ready.' : 'Add your Firebase web app configuration to js/config.js.'}</p>${statusPill(fb.enabled ? 'CONFIGURED' : 'NOT CONFIGURED', fb.enabled)}<div class="divider"></div><button class="btn btn-outline btn-small" id="loginBtn">Sign in / create account</button> <button class="btn btn-outline btn-small" id="signOutBtn">Sign out</button></div>
+  <div class="grid"><div class="card"><p class="eyebrow">FIREBASE</p><h3>${fb.enabled ? 'Firebase initialized' : 'Firebase not configured'}</h3><p class="card-sub">${fb.enabled ? 'Authentication and Firestore SDK are ready.' : 'Add the six FIREBASE_* variables in Vercel and redeploy.'}</p>${statusPill(fb.enabled ? 'CONFIGURED' : 'NOT CONFIGURED', fb.enabled)}<div class="divider"></div><button class="btn btn-outline btn-small" id="loginBtn">Sign in / create account</button> <button class="btn btn-outline btn-small" id="signOutBtn">Sign out</button></div>
   <div class="card"><p class="eyebrow">FLIGHTS, STAYS & EXPERIENCES</p><h3>External provider search</h3><p class="card-sub">No airline or hotel API key is required. WAYFARER builds search links for Google Flights, Skyscanner, Google Hotels, Booking.com and activity search sites. Prices and availability are checked on those provider websites.</p>${statusPill('NO API KEY REQUIRED', true)}</div>
-  <div class="card"><p class="eyebrow">AGENT37 PERSONAL</p><h3>${ag.connected ? 'Bridge configured' : 'Not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p>${statusPill(ag.connected ? 'VERIFY ON USE' : 'INSTANCE ID IS NOT AN API', ag.connected)}<div class="divider"></div><p class="card-sub">Agent37 Personal is a hosted agent. Use only a documented integration method supplied by Agent37. Do not use the Cloud Sandbox API for the Hackyard Personal challenge.</p><button class="btn btn-outline btn-small" id="agentHelp">Integration explanation</button></div>
+  <div class="card"><p class="eyebrow">AGENT37 CLOUD</p><h3>${ag.connected ? 'Cloud API configured' : 'Not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p>${statusPill(ag.connected ? 'VERIFY ON USE' : 'INSTANCE ID IS NOT AN API', ag.connected)}<div class="divider"></div><p class="card-sub">This project connects server-side to your Agent37 Cloud Hermes instance through its documented /v1/responses endpoint. The sk_live key never reaches the browser. Requests require a signed-in Firebase user.</p><button class="btn btn-outline btn-small" id="agentHelp">Connection details</button></div>
   <div class="card"><p class="eyebrow">SUPABASE PRIVATE STORAGE</p><h3>${CONFIG.storage?.signingEndpoint ? 'Signing URL configured' : 'File upload not configured'}</h3><p class="card-sub">Optional. Uses a Firebase-verified server function and a private bucket. Firebase Functions deployment may require a billing-enabled plan.</p></div>
   <div class="card"><p class="eyebrow">PUBLIC LIVE DATA</p><h3>Weather and exchange reference</h3><p class="card-sub">Open-Meteo provides forecast data without a key for non-commercial use. Frankfurter provides reference exchange rates, not instant card/cash quotes.</p><button class="btn btn-outline btn-small" data-action="test-public-apis">Test public data sources</button><div id="publicApiTest" class="card-sub" style="margin-top:8px"></div></div></div></div>`;
   $('#profileForm').addEventListener('submit', async e => { e.preventDefault(); profile = await saveProfile({ name: $('#profileName').value.trim(), homeAirport: $('#profileHome').value.trim(), currency: $('#profileCurrency').value, pace: $('#profilePace').value, interests: $('#profileInterests').value.split(',').map(x => x.trim()).filter(Boolean) }); updateUserChrome(); toast('Preferences saved.'); });
   $('#loginBtn').addEventListener('click', showLoginModal);
   $('#signOutBtn').addEventListener('click', async () => { await signOutFirebase(); setCurrentUser(null); updateUserChrome(); toast('Signed out.'); renderSettings(); });
-  $('#agentHelp').addEventListener('click', () => showModal({ eyebrow: 'AGENT37 PERSONAL', title: 'What is needed to connect?', body: `<p>Your Agent37 Personal instance name/ID is not enough to connect a third-party web app. The public Personal product describes a hosted agent with its own computer, workspace and task board, but this build has not been given a supported embeddable chat URL or API contract.</p><p>Ask Agent37 support or check your Personal dashboard for an official external integration or webhook. Only then configure the documented endpoint through a secure server bridge.</p><p>Never paste an API secret into js/config.js. This app will keep showing Agent37 as not connected until a real request succeeds.</p>`, actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] }));
+  $('#agentHelp').addEventListener('click', () => showModal({ eyebrow: 'AGENT37 CLOUD', title: 'How the secure connection works', body: `<p>Your browser sends a Firebase sign-in token to this website's server-side /api/agent37 route. The server verifies that token and calls your selected Hermes instance using the Agent37 Cloud API key stored in Vercel.</p><p>The Agent37 key is never sent to the browser. The instance must be running, its Hermes API gateway must be available, and its configured model/provider must be usable.</p><p>Do not paste the sk_live key into website code or chat messages.</p>`, actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] }));
 }
 
 async function showLoginModal() {
@@ -406,14 +400,14 @@ async function sendHelpMessage(message) {
   const text = String(message || '').trim(); if (!text) return;
   helpMessages.push({ role: 'user', text }); $('#helpInput').value = ''; renderHelpMessages();
   if (agent37ConnectionStatus().connected) {
-    try { const reply = await sendToAgent37({ message: `Answer this question about the WAYFARER AI website. Current page: ${currentRoute}. Do not claim an action was performed. Question: ${text}`, conversation: helpMessages.slice(-10), profile, tools: [] }); helpMessages.push({ role: 'assistant', text: reply.reply }); }
+    try { const reply = await sendToAgent37({ message: `Answer this question about the WAYFARER AI website. Current page: ${currentRoute}. Do not claim an action was performed. Question: ${text}`, profile, tools: [] }); helpMessages.push({ role: 'assistant', text: reply.reply }); }
     catch (error) { helpMessages.push({ role: 'assistant', text: `Agent37 is unavailable: ${error.message}. No generated response was substituted. You can use the navigation menu or the setup guide in Settings.` }); }
   } else helpMessages.push({ role: 'assistant', text: websiteHelp(text) });
   renderHelpMessages();
 }
 function websiteHelp(message) {
   const q = message.toLowerCase();
-  if (/workspace|agent|automation/.test(q)) return 'Open AI Workspace in the sidebar. It sends your instruction to Agent37 Personal when a verified bridge is configured. Any website changes must be reviewed and approved before they are saved.';
+  if (/workspace|agent|automation/.test(q)) return 'Open AI Workspace in the sidebar. Sign in to WAYFARER and send your instruction to the connected Agent37 Cloud Hermes instance. Website changes are not applied automatically.';
   if (/trip|itinerary|planner/.test(q)) return 'Open My Trips to create a trip record with your own destination and dates. The Trip Planner page can send natural-language questions to Agent37 when connected.';
   if (/flight/.test(q)) return 'Open Flights, enter origin, destination, dates and traveller count, then choose an external provider. WAYFARER does not fetch or guarantee live fares; check the final price and rules on the provider website.';
   if (/hotel|stay/.test(q)) return 'Open Stays, enter a city and check-in/check-out dates, then open Google Hotels or Booking.com to check current prices and availability.';

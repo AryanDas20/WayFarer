@@ -1,19 +1,18 @@
-// Public browser configuration. Firebase Web App config is not a private key.
-// Replace the YOUR_* values with the settings from Firebase Console > Project settings > Your apps.
-// NEVER place service-account JSON, private keys, or server secrets in this file.
+// Browser-safe defaults only. Firebase's public Web App configuration is
+// loaded from /api/firebase-config at runtime on Vercel. Never add server secrets here.
 export const CONFIG = {
   appName: 'WAYFARER AI',
   firebase: {
-    apiKey: 'YOUR_FIREBASE_WEB_API_KEY',
-    authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-    projectId: 'YOUR_PROJECT_ID',
-    appId: 'YOUR_FIREBASE_WEB_APP_ID'
+    apiKey: '',
+    authDomain: '',
+    projectId: '',
+    storageBucket: '',
+    messagingSenderId: '',
+    appId: ''
   },
   agent37: {
-    // Keep disabled until Agent37 documents a supported Personal-to-website connection.
-    enabled: false,
-    instanceId: '',
-    bridgeUrl: ''
+    // The actual Cloud API credentials are read only by /api/agent37 on the server.
+    cloudEnabled: true
   },
   storage: {
     // Optional advanced setup only. Leave blank for the beginner/free setup.
