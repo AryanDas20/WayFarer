@@ -86,3 +86,27 @@ body{background:var(--bg)}
 @media(max-width:600px){.landing-prompt{flex-direction:column;align-items:stretch}.landing-prompt textarea{min-height:50px}.btn-prompt{width:100%}}
 
 .l-hero-copy .eyebrow{font-size:9px;margin-bottom:8px}.l-trust-row span:first-child{color:#dfff8a}
+
+/* WAYFARER softer palette update: muted, deeper hues and reduced visual contrast */
+:root{--brown:#365665;--tan:#c7d9d9;--sand:#b7c9cb;--grey:#b8c7c9;--olive:#456777;--olive-dark:#395967;--bg:#e9eff0;--bg2:#e1e9eb;--panel:#f0f4f4;--panel2:#e6edef;--text:#344b55;--muted:#687f88;--line:rgba(51,83,97,.12);--line-strong:rgba(51,83,97,.22);--shadow:0 16px 42px rgba(32,57,68,.07);--sidebar:#e4ebed}
+[data-theme="dark"]{--bg:#172e38;--bg2:#1c3641;--panel:#203b46;--panel2:#1c3540;--text:#d5e0e1;--brown:#c2d0d2;--muted:#98afb5;--line:rgba(194,214,218,.11);--line-strong:rgba(194,214,218,.2);--olive:#5d7b87;--olive-dark:#526f7a;--tan:#718b95;--sidebar:#142a33;--shadow:0 18px 50px rgba(0,0,0,.16)}
+[data-theme="dark"] body{background:var(--bg)}
+[data-theme="dark"] #landing{background:#182f39;color:#cbd8da;--landing-ink:#d0dcdd;--landing-muted:#98afb5}
+[data-theme="dark"] .l-nav{background:rgba(24,47,57,.91);border-color:rgba(200,220,223,.09)}
+[data-theme="dark"] .l-nav .brand-copy strong{color:#cbd8da}[data-theme="dark"] .l-nav .brand-copy small{color:#93aab1}
+[data-theme="dark"] .l-hero:before{background-color:#193743;background-image:radial-gradient(rgba(91,145,159,.2) 1.4px,transparent 1.4px)}
+[data-theme="dark"] .l-hero:after{background:radial-gradient(ellipse at 3% 105%,rgba(83,135,151,.2),transparent 42%),linear-gradient(105deg,rgba(5,28,37,.12),transparent 70%)}
+[data-theme="dark"] .l-hero h1,[data-theme="dark"] .l-section h2{color:#d1dcdd}[data-theme="dark"] .l-hero h1 em,[data-theme="dark"] .l-section h2 em{color:#aabfc4}
+[data-theme="dark"] .l-hero .eyebrow,[data-theme="dark"] .l-trust-row{color:#a8bec3}
+[data-theme="dark"] .l-proof-strip{background:#203b46;border-color:rgba(205,225,227,.08)}
+[data-theme="dark"] .l-section{color:var(--text)}[data-theme="dark"] .discover-panel,[data-theme="dark"] .l-feature-card,[data-theme="dark"] .preview-content,[data-theme="dark"] .l-steps article{background:#203b46;border-color:var(--line);color:var(--text)}
+[data-theme="dark"] .l-feature-card h3,[data-theme="dark"] .preview-content h3,[data-theme="dark"] .l-steps b{color:#c6d5d8}
+[data-theme="dark"] .l-chips button{background:#2a4651;border-color:rgba(198,219,221,.12);color:#c1d2d5}
+[data-theme="dark"] .btn-ghost-light{background:rgba(197,217,220,.07);border-color:rgba(197,217,220,.16);color:#c5d5d8}
+[data-theme="dark"] .btn-google{background:#2a414b;color:#c8d7da;border-color:rgba(194,215,218,.13)}
+[data-theme="dark"] .travel-window{background:#223d48;border-color:rgba(199,218,221,.1)}
+[data-theme="dark"] .float-card{background:#29434e;color:#c7d7da;border-color:rgba(199,218,221,.12)}
+[data-theme="dark"] .l-guided-banner{background:#203b46;border-color:var(--line)}
+#landingThemeToggle{min-width:34px;font-size:14px}
+.history-layout{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;align-items:start}.history-section-title{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:12px 0}.history-section-title h2{font:600 26px 'Cormorant Garamond',serif;color:var(--brown);margin:0}.history-section-title span{font-size:9px;color:var(--muted)}.history-card{margin-bottom:10px}.history-card-top{display:flex;justify-content:space-between;align-items:center;gap:8px}.history-card-top small{font-size:9px;color:var(--muted)}.history-kind{font-size:8px;letter-spacing:1.3px;border:1px solid var(--line);background:var(--panel2);padding:4px 7px;border-radius:6px;color:var(--olive)}.history-card h3{margin:12px 0 5px}.history-card p{font-size:11px;color:var(--muted);margin:0}.history-query{font-size:10px;color:var(--brown);background:var(--panel2);padding:9px;border-radius:8px;margin-top:9px;overflow-wrap:anywhere}.guest-history-note{max-width:650px;padding:30px}.guest-history-icon{font-size:28px;color:var(--olive)}.guest-history-note h3{font:600 30px 'Cormorant Garamond',serif;color:var(--brown);margin:8px 0}.guest-history-note p{color:var(--muted);font-size:12px;max-width:60ch}
+@media(max-width:800px){.history-layout{grid-template-columns:1fr}}

@@ -27,6 +27,10 @@ const dateFmt = d => d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-IN', {
 const id = prefix => `${prefix}-${crypto.randomUUID()}`;
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const currentUser = () => getCurrentUser();
+async function recordHistory(entry) {
+  if (currentUser().isGuest) return; // Guest actions work; history is intentionally not retained.
+  try { await saveItem('history', { id: id('history'), createdAt: new Date().toISOString(), ...entry }); } catch (error) { console.warn('History could not be saved', error); }
+}
 
 const FEATURE_DETAILS = {
   discovery: { title: 'Explore destinations', route: 'explore', intro: 'Discover real places and make more informed choices before you commit to a destination.', paragraphs: ['Search city and place records using Open-Meteo Geocoding. Results can include the destination name, country, administrative area, coordinates and population when the source provides it.', 'Open a result to check its current weather, save it to your wishlist for later, or use it as the starting point for a trip. The page is designed to make discovery a useful first step rather than a static gallery.', 'Because results come from a live source, availability and detail can vary by spelling and location coverage. WAYFARER does not invent ratings, prices or recommendations.'], note: 'Best for: comparing destination ideas, collecting places and checking basic location context.' },
@@ -131,7 +135,7 @@ async function renderDashboard() {
     <div class="section-head"><div><h2>Travel search partners</h2><p>Open external providers to check current prices and availability.</p></div></div>
     <div class="grid grid-3"><button class="quick-link" data-route="flights"><div><strong>Search flights</strong><small>Opens external flight search providers.</small></div><span>✈</span></button><button class="quick-link" data-route="hotels"><div><strong>Search stays</strong><small>Compare stays on external provider sites.</small></div><span>⌂</span></button><button class="quick-link" data-route="experiences"><div><strong>Find experiences</strong><small>Find activities on external search sites.</small></div><span>◇</span></button></div>
     <div class="grid grid-2" style="margin-top:16px"><div class="card"><p class="eyebrow">AGENT STATUS</p><h3>${ag.connected ? 'Agent37 Cloud configured' : 'Agent37 not connected'}</h3><p class="card-sub">${escapeHTML(ag.detail)}</p><button class="btn btn-outline btn-small" data-route="settings">Integration settings ↗</button></div><div class="card"><p class="eyebrow">DATA POLICY</p><h3>No invented travel results</h3><p class="card-sub">WAYFARER never invents fares or hotel prices. External providers show their own live availability and final terms.</p></div></div>`;
-  if (currentUser().isGuest) content.insertAdjacentHTML('afterbegin', `<div class="guest-banner"><p><strong>You're exploring as a guest.</strong> Your trips, saved places and preferences stay in this browser. Sign in to sync account data across devices and unlock the private AI workspace.</p><button class="btn btn-primary btn-small" data-landing-login>Sign in / create account ↗</button></div>`);
+  if (currentUser().isGuest) content.insertAdjacentHTML('afterbegin', `<div class="guest-banner"><p><strong>You're exploring as a guest.</strong> Your trips, saved places and preferences stay in this browser. Guest searches and planning activity are not saved to history. Sign in to sync account data across devices and unlock private AI requests.</p><button class="btn btn-primary btn-small" data-landing-login>Sign in / create account ↗</button></div>`);
   content.insertAdjacentHTML('beforeend', `<div class="section-head"><div><h2>Explore your workspace</h2><p>Choose a feature to understand what it does, or open the guided tour for a complete walkthrough.</p></div><button class="btn btn-outline btn-small" id="dashboardTourShortcut">✦ Start guided tour</button></div>
     <div class="feature-atlas">
       <button class="atlas-card" data-feature="discovery"><span>⌖</span><strong>Destination discovery</strong><small>Live place search, weather context and saved destination ideas.</small><em>Understand this feature ↗</em></button>
@@ -161,6 +165,7 @@ async function searchDestinations(query) {
   grid.innerHTML = `<div class="card">Searching live place data…</div>`;
   try {
     livePlaces = await TravelProvider.searchDestinations(query);
+    await recordHistory({ kind: 'search', title: `Destination search: ${query}`, query, summary: `${livePlaces.length} live place result(s) returned.` });
     grid.innerHTML = livePlaces.length ? `<div class="grid grid-3">${livePlaces.map(destinationCard).join('')}</div>` : emptyState('⌕','No live matches','Try another spelling or a larger city.');
   } catch (error) { grid.innerHTML = emptyState('!','Place search unavailable',escapeHTML(error.message)); }
 }
@@ -233,6 +238,7 @@ async function sendAgentMessage(message) {
     const trips = await listItems('trips');
     const response = await sendToAgent37({ message: text, profile, trip: trips.find(t => t.id === plannerTripId) || null });
     pending.pending = false; pending.text = response.reply; pending.plan = response.plan;
+    if (response.plan) await recordHistory({ kind: 'plan', title: `Itinerary generated: ${response.plan.destination || 'travel plan'}`, query: response.plan.destination || text, summary: `${response.plan.days?.length || 0} day(s) proposed · not yet saved as a trip` });
     if (response.planInvalid) pending.text += '\n\n(The AI included a plan, but it could not be read safely, so no plan card was created. Try asking again.)';
   } catch (error) {
     pending.pending = false; pending.error = true; pending.text = `Agent37 request failed: ${error.message}`;
@@ -251,7 +257,7 @@ async function confirmSavePlan(idx) {
       try {
         const base = existing || { id: id('trip'), status: 'draft', bookings: [], costs: [], createdAt: new Date().toISOString() };
         const trip = { ...base, title: plan.title, destination: plan.destination, origin: plan.origin || base.origin || '', startDate: plan.startDate || base.startDate || '', endDate: plan.endDate || base.endDate || '', travellers: plan.travellers, budget: base.budget ?? plan.budget ?? null, days: plan.days, budgetEstimate: plan.budgetEstimate, summary: plan.summary, assumptions: plan.assumptions, source: 'agent37-proposal' };
-        await saveItem('trips', trip);
+        await saveItem('trips', trip); await recordHistory({ kind: 'plan', title: `AI itinerary saved: ${trip.destination}`, query: trip.destination, summary: `${trip.days.length} day(s) · ${dateFmt(trip.startDate)} — ${dateFmt(trip.endDate)}` });
         await saveItem('tasks', { id: id('task'), title: existing ? 'Itinerary updated' : 'Trip saved from AI plan', instruction: `Saved “${trip.title}” after your confirmation.`, status: 'completed', source: 'Agent37 Cloud', createdAt: new Date().toISOString(), log: [{ at: new Date().toISOString(), event: `User confirmed; ${existing ? 'updated' : 'created'} trip record. Nothing was booked.` }] });
         closeModal(); toast('Trip saved.'); openTrip(trip.id);
       } catch (error) { toast(error.message, 'error'); }
@@ -261,6 +267,7 @@ async function confirmSavePlan(idx) {
 function openSearchFor(kind, t) {
   const today = new Date().toISOString().slice(0, 10);
   catalogPrefill = { kind, origin: t.origin || '', destination: t.destination || '', start: t.startDate >= today ? t.startDate : '', end: t.endDate >= today ? t.endDate : '', adults: Math.min(9, Math.max(1, Number(t.travellers) || 1)) };
+  recordHistory({ kind: 'search', title: `${kind} search: ${t.destination || 'trip'}`, query: [t.origin, t.destination, catalogPrefill.start, catalogPrefill.end].filter(Boolean).join(' → '), summary: `Prepared ${kind} search from trip details.` });
   routeTo(kind);
 }
 function applyCatalogPrefill(kind) {
@@ -350,7 +357,7 @@ function showNewTripForm() {
     if (endDate < startDate) return toast('End date must be after start date.', 'error');
     const budgetValue = $('#newTripBudget').value;
     const trip = { id: id('trip'), title: `Trip to ${$('#newTripDestination').value.trim()}`, destination: $('#newTripDestination').value.trim(), origin: $('#newTripOrigin').value.trim(), startDate, endDate, travellers: Number($('#newTripTravellers').value), budget: budgetValue ? Number(budgetValue) : null, estimatedCost: null, status: 'draft', days: [], bookings: [], createdAt: new Date().toISOString() };
-    await saveItem('trips', trip); closeModal(); toast('Your trip was saved.'); routeTo('trips');
+    await saveItem('trips', trip); await recordHistory({ kind: 'trip', title: `Trip planned: ${trip.destination}`, query: trip.destination, summary: `${dateFmt(startDate)} — ${dateFmt(endDate)} · ${trip.travellers} traveller(s)` }); closeModal(); toast('Your trip was saved.'); routeTo('trips');
   });
 }
 function openTrip(tripId) { currentTripId = tripId; routeTo('trip'); }
@@ -366,11 +373,30 @@ function collectDays(trip) {
     return { day: i + 1, date: trip.startDate ? addDays(trip.startDate, i) : '', title: v('title'), morning: v('morning'), afternoon: v('afternoon'), evening: v('evening'), travel: v('travel'), estCost: cost === '' ? null : Math.max(0, Number(cost) || 0) };
   });
 }
+async function shareTripCard(trip) {
+  const canvas = document.createElement('canvas'); canvas.width = 1200; canvas.height = 630;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 1200, 630); gradient.addColorStop(0, '#244c5b'); gradient.addColorStop(.55, '#386c79'); gradient.addColorStop(1, '#829a98');
+  ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(229,239,235,.08)'; for (let y=24;y<630;y+=38) for (let x=24;x<1200;x+=38) { ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fill(); }
+  ctx.fillStyle='#d7e2d9';ctx.font='600 24px Arial';ctx.fillText('WAYFARER · TRAVEL CARD',70,82);
+  ctx.fillStyle='#f4f3e8';ctx.font='bold 64px Georgia';ctx.fillText((trip.destination || 'Your journey').slice(0,32),70,210);
+  ctx.fillStyle='#dbe8e1';ctx.font='28px Arial';ctx.fillText(`${trip.origin ? trip.origin + '  →  ' : ''}${trip.destination || ''}`.slice(0,56),70,270);
+  ctx.font='24px Arial';ctx.fillText(`${trip.startDate ? dateFmt(trip.startDate) : 'Dates flexible'}${trip.endDate ? '  —  ' + dateFmt(trip.endDate) : ''}`,70,340);
+  ctx.fillText(`${Number(trip.travellers || 1)} traveller(s)  ·  ${trip.days?.length || 0} planned day(s)`,70,400);
+  if (trip.summary) { ctx.font='20px Arial'; const summary=trip.summary.slice(0,130);ctx.fillText(summary,70,470); }
+  ctx.fillStyle='#d5e3d9';ctx.font='18px Arial';ctx.fillText('A journey planned with WAYFARER AI',70,570);
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png')); if (!blob) return toast('Could not create travel card image.', 'error');
+  const file = new File([blob], `${(trip.destination || 'travel').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}-wayfarer-card.png`, { type: 'image/png' });
+  if (navigator.share && navigator.canShare?.({ files: [file] })) { try { await navigator.share({ title: `Trip to ${trip.destination}`, text: 'My travel plan created with WAYFARER AI', files: [file] }); return; } catch (error) { if (error.name === 'AbortError') return; } }
+  const url = URL.createObjectURL(blob); const a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Travel card image downloaded. Share it anywhere.');
+}
+
 async function renderTripPage() {
   const trips = await listItems('trips'); const trip = trips.find(t => t.id === currentTripId);
   if (!trip) { content.innerHTML = `${pageHead('TRIP NOT FOUND','This trip is not available.','It may have been deleted or belongs to another account.')}${emptyState('▤','Nothing to show','Go back to your trips.','<button class="btn btn-primary" data-route="trips">My trips</button>')}`; return; }
   const days = trip.days || []; const be = trip.budgetEstimate || {}; const est = budgetTotal(be); const trav = Math.max(1, Number(trip.travellers) || 1);
-  content.innerHTML = `${pageHead('TRIP DETAILS', escapeHTML(trip.title || trip.destination), `${escapeHTML(trip.origin ? `${trip.origin} → ` : '')}${escapeHTML(trip.destination)} · ${dateFmt(trip.startDate)} — ${dateFmt(trip.endDate)}`, `<div class="head-actions"><button class="btn btn-outline btn-small" id="editTripBtn">Edit details</button><button class="btn btn-primary btn-small" id="askAiTripBtn">✳ Ask AI to modify</button></div>`)}
+  content.innerHTML = `${pageHead('TRIP DETAILS', escapeHTML(trip.title || trip.destination), `${escapeHTML(trip.origin ? `${trip.origin} → ` : '')}${escapeHTML(trip.destination)} · ${dateFmt(trip.startDate)} — ${dateFmt(trip.endDate)}`, `<div class="head-actions"><button class="btn btn-outline btn-small" id="shareTripBtn">Share travel card ↗</button><button class="btn btn-outline btn-small" id="editTripBtn">Edit details</button><button class="btn btn-primary btn-small" id="askAiTripBtn">✳ Ask AI to modify</button></div>`)}
   <div class="grid grid-4"><div class="card stat-card"><div><small>Status</small><strong style="font-size:18px">${escapeHTML(trip.status || 'draft')}</strong></div></div><div class="card stat-card"><div><small>Travellers</small><strong>${trav}</strong></div></div><div class="card stat-card"><div><small>Your budget</small><strong style="font-size:20px">${trip.budget ? money(trip.budget) : 'Not set'}</strong></div></div><div class="card stat-card"><div><small>Estimated total</small><strong style="font-size:20px">${est ? money(est) : '—'}</strong></div></div></div>
   ${trip.summary ? `<div class="card" style="margin-top:16px"><p class="eyebrow">OVERVIEW</p><p>${escapeHTML(trip.summary)}</p>${(trip.assumptions || []).length ? `<ul class="plan-assumptions">${trip.assumptions.map(a => `<li>${escapeHTML(a)}</li>`).join('')}</ul>` : ''}</div>` : ''}
   <div class="section-head"><div><h2>Weather</h2><p>Forecast from Open-Meteo for the destination.</p></div></div><div class="card" id="tripWeather">Loading forecast…</div>
@@ -382,6 +408,7 @@ async function renderTripPage() {
   <div class="grid grid-3"><button class="quick-link" data-trip-search="flights"><div><strong>Search flights</strong><small>Google Flights · Skyscanner</small></div><span>✈</span></button><button class="quick-link" data-trip-search="hotels"><div><strong>Search stays</strong><small>Google Hotels · Booking.com</small></div><span>⌂</span></button><button class="quick-link" data-trip-search="experiences"><div><strong>Find activities</strong><small>Google · GetYourGuide</small></div><span>◇</span></button></div>
   <div class="plan-actions" style="margin-top:22px"><button class="btn btn-outline btn-small" id="calendarBtn">Export calendar</button><button class="btn btn-outline btn-small" data-route="trips">← All trips</button><button class="btn btn-outline btn-small danger" id="deleteTripBtn">Delete trip</button></div>`;
   const reload = async patch => { await saveItem('trips', { ...trip, ...patch }); renderTripPage(); };
+  $('#shareTripBtn')?.addEventListener('click', () => shareTripCard(trip));
   $('#editTripBtn').addEventListener('click', () => showEditTripForm(trip));
   $('#askAiTripBtn').addEventListener('click', () => { plannerTripId = trip.id; routeTo('planner'); });
   $('#askAiEmpty')?.addEventListener('click', () => { plannerTripId = trip.id; plannerDraft = `Plan a day-by-day itinerary for my trip to ${trip.destination}${trip.startDate ? ` from ${trip.startDate} to ${trip.endDate}` : ''} for ${trav} traveller(s)${trip.budget ? ` with a budget of ₹${trip.budget}` : ''}.`; routeTo('planner'); });
@@ -507,8 +534,14 @@ async function renderBookings() {
 }
 
 async function renderHistory() {
-  const tasks = await listItems('tasks');
-  content.innerHTML = `${pageHead('TRANSPARENT AI ACTIVITY','A complete record of actual actions.','AI history is written only when an actual Agent37 response or approved website action is received.')}${tasks.length ? `<div class="grid">${tasks.map(taskCard).join('')}</div>` : emptyState('◷','No AI activity yet','Connect Agent37 and run a task. No placeholder history is generated.')}`;
+  if (currentUser().isGuest) {
+    content.innerHTML = `${pageHead('RECENT ACTIVITY','Guest history is private to this session.','Guest searches and planning actions are available, but history is intentionally not saved.')}<div class="guest-history-note card"><div class="guest-history-icon">◷</div><h3>Nothing is being recorded</h3><p>As a guest, you can use the website features. Search and planning activity is not added to a saved history. Sign in if you want a persistent activity record.</p><button class="btn btn-primary btn-small" data-landing-login>Sign in for saved history</button></div>`;
+    return;
+  }
+  const [records, tasks] = await Promise.all([listItems('history'), listItems('tasks')]);
+  const entries = [...records.map(r => ({ ...r, _history: true })), ...tasks.map(t => ({ ...t, _history: false }))].sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const historyCards = records.map(r => `<article class="card history-card"><div class="history-card-top"><span class="history-kind">${escapeHTML((r.kind || 'activity').toUpperCase())}</span><small>${r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN') : ''}</small></div><h3>${escapeHTML(r.title || r.query || 'Travel activity')}</h3><p>${escapeHTML(r.summary || r.query || '')}</p>${r.query ? `<div class="history-query">${escapeHTML(r.query)}</div>` : ''}</article>`).join('');
+  content.innerHTML = `${pageHead('TRAVEL ACTIVITY','Your search & planning history.','Searches, planned trips and confirmed AI actions that were saved while you were signed in.')}${entries.length ? `<div class="history-layout"><div><div class="history-section-title"><h2>Searches & trip plans</h2><span>${records.length} saved item(s)</span></div>${historyCards || '<div class="card card-sub">No searches or plans saved yet.</div>'}</div><div><div class="history-section-title"><h2>AI task activity</h2><span>${tasks.length} task(s)</span></div>${tasks.length ? `<div class="grid">${tasks.map(taskCard).join('')}</div>` : '<div class="card card-sub">No AI tasks saved yet.</div>'}</div></div>` : emptyState('◷','Your history is empty','Use destination search or save a trip. Signed-in activity will appear here.')}`;
 }
 async function inspectTask(taskId) {
   const task = (await listItems('tasks')).find(t => t.id === taskId); if (!task) return;
@@ -708,7 +741,7 @@ async function showTourStep(index) {
 }
 function startWebsiteTour() { closeWebsiteTour(); showTourStep(0).catch(error => { closeWebsiteTour(); toast(`The website tour could not open: ${error.message}`, 'error'); }); }
 
-function toggleTheme() { const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = next; try { localStorage.setItem('wayfarer.theme', next); } catch { /* ignore */ } $('#themeToggle').textContent = next === 'dark' ? '☾' : '☼'; }
+function toggleTheme() { const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = next; try { localStorage.setItem('wayfarer.theme', next); } catch { /* ignore */ } const glyph = next === 'dark' ? '☾' : '☼'; if ($('#themeToggle')) $('#themeToggle').textContent = glyph; if ($('#landingThemeToggle')) $('#landingThemeToggle').textContent = glyph; }
 
 // Delegated page actions.
 document.addEventListener('click', async event => {
@@ -741,6 +774,7 @@ document.addEventListener('click', async event => {
 
 $('#modalClose').addEventListener('click', closeModal);
 $('#themeToggle').addEventListener('click', toggleTheme);
+$('#landingThemeToggle')?.addEventListener('click', toggleTheme);
 $('#topSignOut').addEventListener('click', handleSignOut);
 $('#guideTourBtn').addEventListener('click', startWebsiteTour);
 $('#sidebarTourBtn').addEventListener('click', startWebsiteTour);
