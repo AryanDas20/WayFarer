@@ -5,7 +5,7 @@ const text = (value, name, max = 160) => {
 };
 const optionalText = (value, max = 160) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const date = (value, name) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) throw new Error(`${name} must use YYYY-MM-DD.`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) || new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value) throw new Error(`${name} must use YYYY-MM-DD.`);
   return value;
 };
 

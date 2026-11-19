@@ -60,8 +60,13 @@ export async function listItems(collectionName) {
   if (!COLLECTIONS.includes(collectionName)) throw new Error('Unsupported collection.');
   const user = getCurrentUser();
   if (!user.isGuest && firebaseStatus().enabled) {
-    const cloudRows = await cloudList(user.uid, collectionName);
-    if (cloudRows) { writeLocal(collectionName, cloudRows); return cloudRows; }
+    try {
+      const cloudRows = await cloudList(user.uid, collectionName);
+      if (cloudRows) { writeLocal(collectionName, cloudRows); return cloudRows; }
+    } catch (error) {
+      // Offline or rules not deployed yet: fall back to this device's copy instead of breaking the page.
+      console.warn(`Cloud read failed for ${collectionName}; using local copy.`, error.message);
+    }
   }
   return readLocal(collectionName);
 }

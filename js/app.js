@@ -1,8 +1,9 @@
 import { CONFIG } from './config.js';
 import { initFirebase, onAuthChange, signInEmail, signUpEmail, signInGoogle, signOutFirebase, firebaseStatus } from './firebase.js';
 import { purgeLegacyDemoRecords, setCurrentUser, getCurrentUser, saveItem, listItems, deleteItem, saveProfile, getProfile } from './store.js';
-import { agent37ConnectionStatus, refreshAgent37Status, sendToAgent37 } from './agent37Adapter.js';
-import { TravelProvider } from './providers.js';
+import { agent37ConnectionStatus, refreshAgent37Status, sendToAgent37, clearAgent37Session } from './agent37Adapter.js';
+import { BUDGET_KEYS, budgetTotal, addDays } from './plan.js';
+import { TravelProvider, weatherForDates, WMO } from './providers.js';
 import { uploadPrivateFile, getPrivateFileUrl } from './storage.js';
 
 
@@ -17,6 +18,7 @@ let livePlaces = [];
 let helpMessages = [];
 let plannerMessages = [];
 let pendingTask = null;
+let currentTripId = null, plannerTripId = null, plannerDraft = '', catalogPrefill = null, budgetTripId = null, agentBusy = false;
 
 const money = (n, currency = CONFIG.currency || 'INR') => Number.isFinite(Number(n))
   ? new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(n))
@@ -47,7 +49,7 @@ function closeMobileNav() { $('#sidebar').classList.remove('open'); }
 function routeTo(route) {
   currentRoute = route; closeMobileNav();
   $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.route === route));
-  const names = { dashboard:'Overview', explore:'Explore destinations', planner:'Trip planner', workspace:'AI Workspace', trips:'My trips', flights:'Flights', hotels:'Stays', experiences:'Experiences', budget:'Budget planner', bookings:'Bookings & documents', history:'AI history', wishlist:'Wishlist', support:'Travel support', settings:'Settings' };
+  const names = { dashboard:'Overview', explore:'Explore destinations', planner:'Trip planner', workspace:'AI Workspace', trips:'My trips', flights:'Flights', hotels:'Stays', experiences:'Experiences', budget:'Budget planner', trip:'Trip details', bookings:'Bookings & documents', history:'AI history', wishlist:'Wishlist', support:'Travel support', settings:'Settings' };
   $('#breadcrumbCurrent').textContent = names[route] || 'Overview';
   renderRoute(route); content.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -59,6 +61,7 @@ async function renderRoute(route) {
       case 'planner': return await renderPlanner();
       case 'workspace': return await renderWorkspace();
       case 'trips': return await renderTrips();
+      case 'trip': return await renderTripPage();
       case 'flights': return await renderCatalog('flights');
       case 'hotels': return await renderCatalog('hotels');
       case 'experiences': return await renderCatalog('experiences');
@@ -125,39 +128,107 @@ function destinationCard(place) {
   return `<article class="card destination-card"><div class="destination-img"><span class="match-pill">LIVE PLACE DATA</span></div><div class="destination-info"><h3>${escapeHTML(place.name)}</h3><p>${escapeHTML([place.admin1, place.country].filter(Boolean).join(', '))}</p><div class="meta-row"><span>Latitude ${Number(place.latitude).toFixed(3)}</span><span>Longitude ${Number(place.longitude).toFixed(3)}</span></div><p style="margin-top:10px">${place.population ? `Population: ${Number(place.population).toLocaleString('en-IN')}` : 'Population not supplied by source'}</p><small class="muted">Source: ${escapeHTML(place.source)}</small><div class="card-actions"><button class="btn btn-outline btn-small" data-save-place="${escapeHTML(place.id)}">♡ Save place</button><button class="btn btn-primary btn-small" data-plan-place="${escapeHTML(place.id)}">Use in trip ↗</button><button class="btn btn-outline btn-small" data-weather-place="${escapeHTML(place.id)}">Weather</button></div></div></article>`;
 }
 
-async function renderPlanner() {
-  const status = agent37ConnectionStatus();
-  content.innerHTML = `${pageHead('CONVERSATIONAL TRIP PLANNER','Start with what matters.','Talk naturally about your trip with your Agent37 Cloud Hermes instance.')}
-  <div class="chat-layout"><section class="card chat-panel"><div class="chat-panel-head"><div class="assistant-avatar">✳</div><div><h3>Travel Concierge</h3><small>${status.connected ? 'Agent37 Cloud configured · live connection verified when you send' : 'Agent37 Cloud not configured'}</small></div>${statusPill(status.connected ? 'CLOUD API CONFIGURED' : 'NOT CONNECTED', false)}</div>
-  <div class="chat-scroll" id="plannerMessages">${plannerMessages.map(m=>`<div class="chat-bubble ${m.role}">${escapeHTML(m.text)}</div>`).join('') || `<div class="chat-bubble assistant">I can help organise travel details. You can search live city data and weather, then open external websites to compare flights, stays and activities.</div>`}</div>
-  <div class="suggestions"><button data-planner-prompt="What information do you need to plan a trip for me?">What do you need?</button><button data-planner-prompt="Help me compare live flight and hotel options.">Compare travel options</button><button data-planner-prompt="Explain how to save a trip in WAYFARER AI.">How do I save a trip?</button></div>
-  <form class="chat-compose" id="plannerForm"><button class="icon-btn" id="plannerVoice" type="button" aria-label="Use voice input">⌁</button><input id="plannerInput" placeholder="Ask your travel concierge…" autocomplete="off"><button type="submit" aria-label="Send message">↑</button></form></section>
-  <aside class="grid"><div class="card"><p class="eyebrow">YOUR TRAVEL PROFILE</p><h3>Personal travel preferences</h3><p class="card-sub">Only preferences you provide are stored.</p><div class="divider"></div><div class="budget-row"><span>Home city / airport</span><strong>${escapeHTML(profile?.homeAirport || 'Not provided')}</strong></div><div class="budget-row"><span>Currency</span><strong>${escapeHTML(profile?.currency || 'INR')}</strong></div><div class="budget-row"><span>Interests</span><strong>${escapeHTML((profile?.interests || []).join(', ') || 'Not provided')}</strong></div><button class="btn btn-outline btn-small" style="margin-top:12px" data-route="settings">Edit profile ↗</button></div>
-  <div class="card"><p class="eyebrow">TRAVEL DATA</p><h3>Source transparency</h3><p class="card-sub">City and weather information use public data services. Flights, stays and activities open external travel search websites; this app does not show made-up offers or prices.</p></div></aside></div>`;
-  $('#plannerForm').addEventListener('submit', async e => { e.preventDefault(); await sendAgentMessage($('#plannerInput').value, 'planner'); });
-  $('#plannerVoice').addEventListener('click', () => startVoiceInput($('#plannerInput')));
+function planCard(plan, idx) {
+  const total = budgetTotal(plan.budgetEstimate); const trav = Math.max(1, plan.travellers || 1);
+  const rows = BUDGET_KEYS.filter(([k]) => plan.budgetEstimate[k] !== undefined).map(([k, label]) => `<div class="budget-row"><span>${label}</span><strong>${money(plan.budgetEstimate[k])}</strong></div>`).join('');
+  const dates = plan.startDate ? `${dateFmt(plan.startDate)} — ${dateFmt(plan.endDate)}` : `${plan.days.length} days · dates not set`;
+  const existing = plan.tripId ? 'update' : 'new';
+  return `<article class="plan-card"><div class="plan-head"><div><span class="pill">AI PROPOSAL · NOT SAVED YET</span><h3>${escapeHTML(plan.title)}</h3><p>${escapeHTML(plan.origin ? `${plan.origin} → ` : '')}${escapeHTML(plan.destination)} · ${dates} · ${plan.travellers} traveller${plan.travellers === 1 ? '' : 's'}</p></div></div>
+  ${plan.summary ? `<p class="plan-summary">${escapeHTML(plan.summary)}</p>` : ''}
+  <div class="plan-days">${plan.days.map(d => itineraryDayHTML(d)).join('')}</div>
+  ${rows ? `<div class="plan-budget"><p class="eyebrow">BUDGET ESTIMATE · NOT A QUOTE</p>${rows}<div class="budget-row total"><span>Estimated total</span><strong>${money(total)}</strong></div><div class="budget-row"><span>Per person (${trav})</span><strong>${money(total / trav)}</strong></div>${plan.budget ? `<div class="budget-row"><span>Your stated budget</span><strong>${money(plan.budget)}</strong></div>` : ''}</div>` : ''}
+  ${plan.assumptions.length ? `<ul class="plan-assumptions">${plan.assumptions.map(a => `<li>${escapeHTML(a)}</li>`).join('')}</ul>` : ''}
+  <div class="plan-actions"><button class="btn btn-primary btn-small" data-save-plan="${idx}">${existing === 'update' ? 'Review & update trip' : 'Review & save as trip'}</button><button class="btn btn-outline btn-small" data-plan-search="flights" data-plan-idx="${idx}">✈ Flights</button><button class="btn btn-outline btn-small" data-plan-search="hotels" data-plan-idx="${idx}">⌂ Stays</button><button class="btn btn-outline btn-small" data-plan-search="experiences" data-plan-idx="${idx}">◇ Activities</button></div>
+  <p class="card-sub">Costs are AI estimates. Check real prices on provider sites; nothing here is booked.</p></article>`;
 }
-async function sendAgentMessage(message, mode = 'planner') {
-  const text = String(message || '').trim(); if (!text) return;
-  const state = mode === 'planner' ? plannerMessages : helpMessages;
-  state.push({ role: 'user', text });
-  const messagesEl = mode === 'planner' ? $('#plannerMessages') : $('#helpMessages');
-  if (messagesEl) { messagesEl.innerHTML = state.map(m => `<div class="chat-bubble ${m.role}">${escapeHTML(m.text)}</div>`).join(''); }
-  const input = mode === 'planner' ? $('#plannerInput') : $('#helpInput'); if (input) input.value = '';
-  if (!agent37ConnectionStatus().connected) {
-    const msg = 'Agent37 Cloud is not configured on the server. Check AGENT37_API_KEY, AGENT37_INSTANCE_ID and AGENT37_BASE_URL in Vercel, then redeploy. No fake response was generated.';
-    state.push({ role: 'assistant', text: msg });
-  } else {
-    try {
-      const trips = await listItems('trips');
-      const response = await sendToAgent37({ message: text, profile, trip: trips[0] || null });
-      state.push({ role: 'assistant', text: response.reply });
-    } catch (error) {
-      state.push({ role: 'assistant', text: `Agent37 request failed: ${error.message}. No AI-generated result or action has been substituted.` });
-    }
+function itineraryDayHTML(d) {
+  const slot = (label, v) => v ? `<div class="slot"><b>${label}</b><span>${escapeHTML(v)}</span></div>` : '';
+  return `<div class="plan-day"><div class="plan-day-head"><span class="step-number">${d.day}</span><div><strong>${escapeHTML(d.title || `Day ${d.day}`)}</strong>${d.date ? `<small>${dateFmt(d.date)}</small>` : ''}</div>${d.estCost ? `<span class="pill">≈ ${money(d.estCost)}</span>` : ''}</div>${slot('Morning', d.morning)}${slot('Afternoon', d.afternoon)}${slot('Evening', d.evening)}${d.travel ? `<div class="slot"><b>Travel</b><span>${escapeHTML(d.travel)}</span></div>` : ''}</div>`;
+}
+function messageHTML(m, i) {
+  const body = m.pending ? '<span class="typing" aria-label="Thinking"><i></i><i></i><i></i></span>' : escapeHTML(m.text).replace(/\n/g, '<br>');
+  return `<div class="chat-bubble ${m.role}${m.error ? ' error' : ''}">${body}</div>${m.plan ? planCard(m.plan, i) : ''}`;
+}
+function renderPlannerMessages() {
+  const el = $('#plannerMessages'); if (!el) return;
+  el.innerHTML = plannerMessages.map(messageHTML).join('') || `<div class="chat-bubble assistant">Hi! Tell me where you're going, for how long, your budget and what you enjoy — for example: “Delhi to Manali, 4 days, ₹15,000, mountains and adventure, budget hotels.” I'll ask for anything missing, then build a day-by-day plan you can review and save.</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+async function renderPlanner() {
+  const status = agent37ConnectionStatus(); const user = currentUser();
+  const trips = await listItems('trips'); const ctxTrip = trips.find(t => t.id === plannerTripId);
+  if (plannerTripId && !ctxTrip) plannerTripId = null;
+  content.innerHTML = `${pageHead('CONVERSATIONAL TRIP PLANNER','Start with what matters.','Describe your trip in plain language. Your Agent37 Cloud assistant asks follow-up questions, then proposes a plan you review before anything is saved.')}
+  <div class="chat-layout"><section class="card chat-panel"><div class="chat-panel-head"><div class="assistant-avatar">✳</div><div><h3>Travel Concierge</h3><small>${status.connected ? 'Agent37 Cloud configured · connection verified when you send' : 'Agent37 Cloud not configured'}</small></div><button class="btn btn-outline btn-small" id="newConversation" type="button">New chat</button></div>
+  ${user.isGuest ? `<div class="notice">Sign in to chat with the AI assistant. You can still create and edit trips on this device without an account. <button class="btn btn-primary btn-small" id="plannerSignIn" type="button">Sign in</button></div>` : ''}
+  ${ctxTrip ? `<div class="notice">Editing <b>${escapeHTML(ctxTrip.title || ctxTrip.destination)}</b> — ask for changes like “make day 2 more relaxed”. <button class="btn btn-outline btn-small" id="clearPlannerTrip" type="button">Clear</button></div>` : ''}
+  <div class="chat-scroll" id="plannerMessages" aria-live="polite"></div>
+  <div class="suggestions"><button data-planner-fill="Plan a 4-day trip from Delhi to Manali for 2 people with a budget of ₹15,000. We like mountains, adventure activities and budget-friendly hotels.">Example: Delhi → Manali</button><button data-planner-fill="Suggest destinations for a 5-day relaxed beach holiday in December under ₹30,000 per person.">Suggest destinations</button><button data-planner-fill="What information do you need to plan a trip for me?">What do you need?</button></div>
+  <form class="chat-compose" id="plannerForm"><button class="icon-btn" id="plannerVoice" type="button" aria-label="Use voice input">⌁</button><input id="plannerInput" placeholder="Describe your trip…" autocomplete="off" maxlength="2000" aria-label="Message to travel concierge"><button type="submit" id="plannerSend" aria-label="Send message">↑</button></form></section>
+  <aside class="grid"><div class="card"><p class="eyebrow">YOUR TRAVEL PROFILE</p><h3>Personal travel preferences</h3><p class="card-sub">Only preferences you provide are shared with the AI.</p><div class="divider"></div><div class="budget-row"><span>Home city / airport</span><strong>${escapeHTML(profile?.homeAirport || 'Not provided')}</strong></div><div class="budget-row"><span>Currency</span><strong>${escapeHTML(profile?.currency || 'INR')}</strong></div><div class="budget-row"><span>Interests</span><strong>${escapeHTML((profile?.interests || []).join(', ') || 'Not provided')}</strong></div><button class="btn btn-outline btn-small" style="margin-top:12px" data-route="settings">Edit profile ↗</button></div>
+  <div class="card"><p class="eyebrow">HOW IT WORKS</p><h3>You stay in control</h3><p class="card-sub">The AI proposes; you review and confirm before a trip is saved or changed. Flights, stays and activities open external search sites. WAYFARER never books or pays on your behalf.</p></div></aside></div>`;
+  renderPlannerMessages();
+  if (plannerDraft) { $('#plannerInput').value = plannerDraft; plannerDraft = ''; $('#plannerInput').focus(); }
+  $('#plannerForm').addEventListener('submit', async e => { e.preventDefault(); await sendAgentMessage($('#plannerInput').value); });
+  $('#plannerVoice').addEventListener('click', () => startVoiceInput($('#plannerInput')));
+  $('#plannerSignIn')?.addEventListener('click', showLoginModal);
+  $('#clearPlannerTrip')?.addEventListener('click', () => { plannerTripId = null; renderPlanner(); });
+  $('#newConversation').addEventListener('click', () => { plannerMessages = []; clearAgent37Session(); renderPlannerMessages(); toast('Started a new conversation.'); });
+}
+async function sendAgentMessage(message) {
+  const text = String(message || '').trim(); if (!text || agentBusy) return;
+  const input = $('#plannerInput'); if (input) input.value = '';
+  plannerMessages.push({ role: 'user', text });
+  if (currentUser().isGuest) {
+    plannerMessages.push({ role: 'assistant', error: true, text: 'Please sign in first — the AI assistant is only available to signed-in users so your usage stays private and protected.' });
+    renderPlannerMessages(); showLoginModal(); return;
   }
-  const fresh = mode === 'planner' ? $('#plannerMessages') : $('#helpMessages');
-  if (fresh) { fresh.innerHTML = state.map(m => `<div class="chat-bubble ${m.role}">${escapeHTML(m.text)}</div>`).join(''); fresh.scrollTop = fresh.scrollHeight; }
+  if (!agent37ConnectionStatus().connected) {
+    plannerMessages.push({ role: 'assistant', error: true, text: 'Agent37 Cloud is not configured on the server. Check AGENT37_API_KEY, AGENT37_INSTANCE_ID and AGENT37_BASE_URL in Vercel, then redeploy. No fake response was generated.' });
+    renderPlannerMessages(); return;
+  }
+  agentBusy = true; const sendBtn = $('#plannerSend'); if (sendBtn) sendBtn.disabled = true;
+  const pending = { role: 'assistant', text: '', pending: true }; plannerMessages.push(pending); renderPlannerMessages();
+  try {
+    const trips = await listItems('trips');
+    const response = await sendToAgent37({ message: text, profile, trip: trips.find(t => t.id === plannerTripId) || null });
+    pending.pending = false; pending.text = response.reply; pending.plan = response.plan;
+    if (response.planInvalid) pending.text += '\n\n(The AI included a plan, but it could not be read safely, so no plan card was created. Try asking again.)';
+  } catch (error) {
+    pending.pending = false; pending.error = true; pending.text = `Agent37 request failed: ${error.message}`;
+  } finally {
+    agentBusy = false; const b = $('#plannerSend'); if (b) b.disabled = false;
+  }
+  if (currentRoute === 'planner') renderPlannerMessages();
+}
+async function confirmSavePlan(idx) {
+  const plan = plannerMessages[idx]?.plan; if (!plan) return toast('That plan is no longer available.', 'error');
+  const trips = await listItems('trips'); const existing = plan.tripId ? trips.find(t => t.id === plan.tripId) : null;
+  const summary = existing ? `Replace the itinerary and budget estimate of “${existing.title || existing.destination}” (${(existing.days || []).length} current days → ${plan.days.length} days).` : `Create a new trip to ${plan.destination} with ${plan.days.length} itinerary days.`;
+  showModal({ eyebrow: 'CONFIRM · NOTHING IS BOOKED', title: existing ? 'Update this trip?' : 'Save this trip?', body: `<p>${escapeHTML(summary)}</p><p class="card-sub">Only your WAYFARER trip record is changed. No bookings or payments are made, and costs stay marked as estimates.</p>`, actions: [
+    { label: 'Cancel', class: 'btn-outline', onClick: closeModal },
+    { label: existing ? 'Confirm update' : 'Confirm & save', class: 'btn-primary', onClick: async () => {
+      try {
+        const base = existing || { id: id('trip'), status: 'draft', bookings: [], costs: [], createdAt: new Date().toISOString() };
+        const trip = { ...base, title: plan.title, destination: plan.destination, origin: plan.origin || base.origin || '', startDate: plan.startDate || base.startDate || '', endDate: plan.endDate || base.endDate || '', travellers: plan.travellers, budget: base.budget ?? plan.budget ?? null, days: plan.days, budgetEstimate: plan.budgetEstimate, summary: plan.summary, assumptions: plan.assumptions, source: 'agent37-proposal' };
+        await saveItem('trips', trip);
+        await saveItem('tasks', { id: id('task'), title: existing ? 'Itinerary updated' : 'Trip saved from AI plan', instruction: `Saved “${trip.title}” after your confirmation.`, status: 'completed', source: 'Agent37 Cloud', createdAt: new Date().toISOString(), log: [{ at: new Date().toISOString(), event: `User confirmed; ${existing ? 'updated' : 'created'} trip record. Nothing was booked.` }] });
+        closeModal(); toast('Trip saved.'); openTrip(trip.id);
+      } catch (error) { toast(error.message, 'error'); }
+    } }
+  ] });
+}
+function openSearchFor(kind, t) {
+  const today = new Date().toISOString().slice(0, 10);
+  catalogPrefill = { kind, origin: t.origin || '', destination: t.destination || '', start: t.startDate >= today ? t.startDate : '', end: t.endDate >= today ? t.endDate : '', adults: Math.min(9, Math.max(1, Number(t.travellers) || 1)) };
+  routeTo(kind);
+}
+function applyCatalogPrefill(kind) {
+  const p = catalogPrefill; catalogPrefill = null; if (!p || p.kind !== kind) return;
+  const set = (sel, v) => { const el = $(sel); if (el && v) el.value = v; };
+  if (kind === 'flights') { set('#flightOrigin', p.origin); set('#flightDestination', p.destination); set('#flightDepart', p.start); set('#flightReturn', p.end); set('#flightAdults', p.adults); }
+  if (kind === 'hotels') { set('#hotelCity', p.destination); set('#hotelCheckin', p.start); set('#hotelCheckout', p.end); set('#hotelAdults', p.adults); }
+  if (kind === 'experiences') set('#activityCity', p.destination);
 }
 
 async function renderWorkspace() {
@@ -178,8 +249,7 @@ async function createWorkspaceTask(instruction) {
   const text = String(instruction || '').trim(); if (!text) return;
   if (!agent37ConnectionStatus().connected) return toast('Agent37 Cloud is not configured. Check Vercel environment variables.', 'error');
   try {
-    const trips = await listItems('trips');
-    const response = await sendToAgent37({ message: `Help me plan this WAYFARER task. Do not claim any website changes were made. Explain the recommended next steps and ask for approval before suggesting an action. User request: ${text}`, profile, trip: trips[0] || null });
+    const response = await sendToAgent37({ message: `Help me plan this WAYFARER task. Do not claim any website changes were made. Explain the recommended next steps and ask for approval before suggesting an action. User request: ${text}`, profile, trip: null });
     const task = { id: id('task'), title: 'Agent37 response', instruction: text, reply: response.reply, status: 'completed', action: null, source: 'Agent37 Cloud Hermes', createdAt: new Date().toISOString(), log: [{ at: new Date().toISOString(), event: 'Agent37 returned a real response. No website action was automatically executed.' }] };
     await saveItem('tasks', task);
     showModal({ eyebrow: 'AGENT37 RESPONSE', title: 'Your agent replied', body: `<p>${escapeHTML(response.reply)}</p><p class="card-sub">No website changes were automatically executed.</p>`, actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] });
@@ -241,27 +311,80 @@ function showNewTripForm() {
     await saveItem('trips', trip); closeModal(); toast('Your trip was saved.'); routeTo('trips');
   });
 }
-async function openTrip(tripId) {
-  const trip = (await listItems('trips')).find(t => t.id === tripId); if (!trip) return toast('Trip not found.', 'error');
-  const days = trip.days || [];
-  showModal({ eyebrow: 'YOUR TRIP RECORD', title: trip.title || trip.destination, body: `<span class="pill">${escapeHTML(trip.status || 'draft')}</span><p>${escapeHTML(trip.origin || 'Origin not set')} → ${escapeHTML(trip.destination)} · ${dateFmt(trip.startDate)} — ${dateFmt(trip.endDate)}</p><div class="grid grid-2"><div class="card"><p class="eyebrow">YOUR BUDGET</p><h3>${trip.budget === null || trip.budget === undefined ? 'Not set' : money(trip.budget)}</h3></div><div class="card"><p class="eyebrow">TRAVELLERS</p><h3>${Number(trip.travellers || 1)}</h3></div></div><h3 style="margin:16px 0 8px">Itinerary</h3>${days.length ? days.map(day => `<div class="task-step"><span class="step-number">${Number(day.day || 1)}</span><div><strong>${dateFmt(day.date)}</strong><p>${escapeHTML(day.title || day.note || 'No activity details saved')}</p></div></div>`).join('') : '<p class="card-sub">No itinerary items have been saved. Use verified experience results or add your own notes.</p>'}<h3 style="margin:16px 0 8px">Bookings</h3>${(trip.bookings || []).length ? trip.bookings.map(b => `<div class="budget-row"><span>${escapeHTML(b.name || b.supplier)} · ${escapeHTML(b.reference || '')}</span><strong>${b.amount ? money(b.amount, b.currency || 'INR') : 'Amount not recorded'}</strong></div>`).join('') : '<p class="card-sub">No booking records linked to this trip.</p>'}`, actions: [
-    { label: 'Open map', class: 'btn-outline', onClick: () => openExternal(`https://www.openstreetmap.org/search?query=${encodeURIComponent(trip.destination)}`) },
-    { label: 'Calendar export', class: 'btn-outline', onClick: () => downloadTripCalendar(trip) },
-    { label: 'Ask Agent37 to update', class: 'btn-outline', onClick: () => { closeModal(); routeTo('workspace'); $('#workspaceInput')?.focus(); } },
-    { label: 'Close', class: 'btn-primary', onClick: closeModal }
-  ] });
+function openTrip(tripId) { currentTripId = tripId; routeTo('trip'); }
+const TRIP_STATUSES = ['draft', 'planned', 'booked-elsewhere', 'completed', 'cancelled'];
+function dayEditHTML(d, i) {
+  return `<div class="day-edit" data-day-index="${i}"><div class="day-edit-head"><span class="step-number">${i + 1}</span><input class="input" data-f="title" maxlength="160" placeholder="Day title" value="${escapeHTML(d.title)}" aria-label="Day ${i + 1} title">${d.date ? `<small class="muted">${dateFmt(d.date)}</small>` : ''}<button class="btn btn-outline btn-small" type="button" data-remove-day="${i}" aria-label="Remove day ${i + 1}">Remove</button></div>
+  <div class="form-grid"><div class="field"><label>Morning</label><textarea class="textarea" data-f="morning" maxlength="600">${escapeHTML(d.morning)}</textarea></div><div class="field"><label>Afternoon</label><textarea class="textarea" data-f="afternoon" maxlength="600">${escapeHTML(d.afternoon)}</textarea></div><div class="field"><label>Evening</label><textarea class="textarea" data-f="evening" maxlength="600">${escapeHTML(d.evening)}</textarea></div><div class="field"><label>Travel notes</label><textarea class="textarea" data-f="travel" maxlength="600">${escapeHTML(d.travel)}</textarea></div></div>
+  <div class="field" style="max-width:220px"><label>Estimated cost for the day (₹)</label><input class="input" data-f="estCost" type="number" min="0" step="1" value="${d.estCost ?? ''}"></div></div>`;
+}
+function collectDays(trip) {
+  return $$('.day-edit').map((el, i) => {
+    const v = f => el.querySelector(`[data-f="${f}"]`).value.trim(); const cost = el.querySelector('[data-f="estCost"]').value;
+    return { day: i + 1, date: trip.startDate ? addDays(trip.startDate, i) : '', title: v('title'), morning: v('morning'), afternoon: v('afternoon'), evening: v('evening'), travel: v('travel'), estCost: cost === '' ? null : Math.max(0, Number(cost) || 0) };
+  });
+}
+async function renderTripPage() {
+  const trips = await listItems('trips'); const trip = trips.find(t => t.id === currentTripId);
+  if (!trip) { content.innerHTML = `${pageHead('TRIP NOT FOUND','This trip is not available.','It may have been deleted or belongs to another account.')}${emptyState('▤','Nothing to show','Go back to your trips.','<button class="btn btn-primary" data-route="trips">My trips</button>')}`; return; }
+  const days = trip.days || []; const be = trip.budgetEstimate || {}; const est = budgetTotal(be); const trav = Math.max(1, Number(trip.travellers) || 1);
+  content.innerHTML = `${pageHead('TRIP DETAILS', escapeHTML(trip.title || trip.destination), `${escapeHTML(trip.origin ? `${trip.origin} → ` : '')}${escapeHTML(trip.destination)} · ${dateFmt(trip.startDate)} — ${dateFmt(trip.endDate)}`, `<div class="head-actions"><button class="btn btn-outline btn-small" id="editTripBtn">Edit details</button><button class="btn btn-primary btn-small" id="askAiTripBtn">✳ Ask AI to modify</button></div>`)}
+  <div class="grid grid-4"><div class="card stat-card"><div><small>Status</small><strong style="font-size:18px">${escapeHTML(trip.status || 'draft')}</strong></div></div><div class="card stat-card"><div><small>Travellers</small><strong>${trav}</strong></div></div><div class="card stat-card"><div><small>Your budget</small><strong style="font-size:20px">${trip.budget ? money(trip.budget) : 'Not set'}</strong></div></div><div class="card stat-card"><div><small>Estimated total</small><strong style="font-size:20px">${est ? money(est) : '—'}</strong></div></div></div>
+  ${trip.summary ? `<div class="card" style="margin-top:16px"><p class="eyebrow">OVERVIEW</p><p>${escapeHTML(trip.summary)}</p>${(trip.assumptions || []).length ? `<ul class="plan-assumptions">${trip.assumptions.map(a => `<li>${escapeHTML(a)}</li>`).join('')}</ul>` : ''}</div>` : ''}
+  <div class="section-head"><div><h2>Weather</h2><p>Forecast from Open-Meteo for the destination.</p></div></div><div class="card" id="tripWeather">Loading forecast…</div>
+  <div class="section-head"><div><h2>Itinerary</h2><p>Edit anything, then save. Changes only affect your trip record.</p></div></div>
+  <form id="itineraryForm">${days.length ? days.map(dayEditHTML).join('') : emptyState('◷','No itinerary yet','Ask the AI to draft one, or add days yourself.','<button class="btn btn-primary" type="button" id="askAiEmpty">✳ Ask AI to plan this trip</button>')}<div class="plan-actions" style="margin-top:12px"><button class="btn btn-outline btn-small" type="button" id="addDayBtn">＋ Add day</button>${days.length ? '<button class="btn btn-primary btn-small" type="submit">Save itinerary</button>' : ''}</div></form>
+  <div class="section-head"><div><h2>Budget estimate</h2><p>Your own or AI estimates, clearly not confirmed prices.</p></div></div>
+  <form class="card" id="budgetEstForm"><div class="form-grid">${BUDGET_KEYS.map(([k, label]) => `<div class="field"><label for="be-${k}">${label} (₹)</label><input class="input" id="be-${k}" data-be="${k}" type="number" min="0" step="1" value="${be[k] ?? ''}"></div>`).join('')}</div><div class="budget-row total" style="margin-top:12px"><span>Estimated total</span><strong>${money(est)}</strong></div><div class="budget-row"><span>Per person (${trav})</span><strong>${money(est / trav)}</strong></div>${trip.budget ? `<div class="budget-row"><span>${est > trip.budget ? 'Over your budget by' : 'Within your budget by'}</span><strong>${money(Math.abs(trip.budget - est))}</strong></div>` : ''}<button class="btn btn-primary btn-small" type="submit" style="margin-top:12px">Save estimate</button></form>
+  <div class="section-head"><div><h2>Find transport, stays & activities</h2><p>Opens external providers with your trip details filled in. Nothing is booked here.</p></div></div>
+  <div class="grid grid-3"><button class="quick-link" data-trip-search="flights"><div><strong>Search flights</strong><small>Google Flights · Skyscanner</small></div><span>✈</span></button><button class="quick-link" data-trip-search="hotels"><div><strong>Search stays</strong><small>Google Hotels · Booking.com</small></div><span>⌂</span></button><button class="quick-link" data-trip-search="experiences"><div><strong>Find activities</strong><small>Google · GetYourGuide</small></div><span>◇</span></button></div>
+  <div class="plan-actions" style="margin-top:22px"><button class="btn btn-outline btn-small" id="calendarBtn">Export calendar</button><button class="btn btn-outline btn-small" data-route="trips">← All trips</button><button class="btn btn-outline btn-small danger" id="deleteTripBtn">Delete trip</button></div>`;
+  const reload = async patch => { await saveItem('trips', { ...trip, ...patch }); renderTripPage(); };
+  $('#editTripBtn').addEventListener('click', () => showEditTripForm(trip));
+  $('#askAiTripBtn').addEventListener('click', () => { plannerTripId = trip.id; routeTo('planner'); });
+  $('#askAiEmpty')?.addEventListener('click', () => { plannerTripId = trip.id; plannerDraft = `Plan a day-by-day itinerary for my trip to ${trip.destination}${trip.startDate ? ` from ${trip.startDate} to ${trip.endDate}` : ''} for ${trav} traveller(s)${trip.budget ? ` with a budget of ₹${trip.budget}` : ''}.`; routeTo('planner'); });
+  $('#addDayBtn').addEventListener('click', async () => { const cur = collectDays(trip); cur.push({ day: cur.length + 1, date: trip.startDate ? addDays(trip.startDate, cur.length) : '', title: '', morning: '', afternoon: '', evening: '', travel: '', estCost: null }); await reload({ days: cur }); });
+  $$('[data-remove-day]').forEach(b => b.addEventListener('click', async () => { const cur = collectDays(trip); cur.splice(Number(b.dataset.removeDay), 1); await reload({ days: cur.map((d, i) => ({ ...d, day: i + 1, date: trip.startDate ? addDays(trip.startDate, i) : '' })) }); }));
+  $('#itineraryForm').addEventListener('submit', async e => { e.preventDefault(); await reload({ days: collectDays(trip) }); toast('Itinerary saved.'); });
+  $('#budgetEstForm').addEventListener('submit', async e => { e.preventDefault(); const next = {}; $$('[data-be]').forEach(i => { if (i.value !== '') next[i.dataset.be] = Math.max(0, Number(i.value) || 0); }); await reload({ budgetEstimate: next }); toast('Budget estimate saved.'); });
+  $$('[data-trip-search]').forEach(b => b.addEventListener('click', () => openSearchFor(b.dataset.tripSearch, trip)));
+  $('#calendarBtn').addEventListener('click', () => downloadTripCalendar(trip));
+  $('#deleteTripBtn').addEventListener('click', () => showModal({ eyebrow: 'PERMANENT ACTION', title: 'Delete this trip?', body: `<p>“${escapeHTML(trip.title || trip.destination)}” and its itinerary will be removed from your account. This cannot be undone.</p>`, actions: [{ label: 'Cancel', class: 'btn-outline', onClick: closeModal }, { label: 'Delete trip', class: 'btn-primary', onClick: async () => { try { await deleteItem('trips', trip.id); closeModal(); toast('Trip deleted.'); routeTo('trips'); } catch (error) { toast(error.message, 'error'); } } }] }));
+  loadTripWeather(trip);
+}
+async function loadTripWeather(trip) {
+  const box = $('#tripWeather'); if (!box) return;
+  try {
+    const places = await TravelProvider.searchDestinations(String(trip.destination).split(',')[0].trim());
+    const place = places[0]; if (!place) { box.innerHTML = '<p class="card-sub">Could not find this destination in the weather service. Try editing the destination to a city name.</p>'; return; }
+    const w = await weatherForDates(place.latitude, place.longitude, trip.startDate, trip.endDate); const d = w.daily || {};
+    if (currentRoute !== 'trip' || !$('#tripWeather')) return;
+    const rows = (d.time || []).map((t, i) => `<tr><td>${dateFmt(t)}</td><td>${WMO(d.weather_code?.[i])}</td><td>${Math.round(d.temperature_2m_max?.[i])}° / ${Math.round(d.temperature_2m_min?.[i])}°C</td><td>${d.precipitation_probability_max?.[i] ?? '—'}%</td></tr>`).join('');
+    box.innerHTML = `<p class="card-sub">Matched to <b>${escapeHTML([place.name, place.admin1, place.country].filter(Boolean).join(', '))}</b> — check this is the right place. ${w.matchesTripDates ? 'Forecast for your trip dates (available up to ~16 days ahead).' : 'Your dates are outside the ~16-day forecast window (or not set), so this is the current 7-day forecast, not your trip dates.'}</p><div class="table-wrap"><table class="wx"><thead><tr><th>Date</th><th>Conditions</th><th>High / Low</th><th>Rain chance</th></tr></thead><tbody>${rows}</tbody></table></div><small class="muted">Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo.com</a></small>`;
+  } catch (error) { if ($('#tripWeather')) $('#tripWeather').innerHTML = `<p class="card-sub">Weather is unavailable right now: ${escapeHTML(error.message)}</p>`; }
+}
+function showEditTripForm(trip) {
+  showModal({ eyebrow: 'EDIT TRIP', title: 'Trip details', body: `<form id="editTripForm"><div class="field"><label for="etTitle">Title</label><input class="input" id="etTitle" required maxlength="120" value="${escapeHTML(trip.title || '')}"></div><div class="form-grid" style="margin-top:10px"><div class="field"><label for="etDest">Destination</label><input class="input" id="etDest" required maxlength="120" value="${escapeHTML(trip.destination || '')}"></div><div class="field"><label for="etOrigin">Departure city</label><input class="input" id="etOrigin" maxlength="120" value="${escapeHTML(trip.origin || '')}"></div><div class="field"><label for="etStart">Start date</label><input class="input" type="date" id="etStart" value="${escapeHTML(trip.startDate || '')}"></div><div class="field"><label for="etEnd">End date</label><input class="input" type="date" id="etEnd" value="${escapeHTML(trip.endDate || '')}"></div><div class="field"><label for="etTrav">Travellers</label><input class="input" type="number" id="etTrav" min="1" max="20" required value="${Number(trip.travellers) || 1}"></div><div class="field"><label for="etBudget">Your budget (₹)</label><input class="input" type="number" id="etBudget" min="0" value="${trip.budget ?? ''}"></div><div class="field"><label for="etStatus">Status</label><select class="select" id="etStatus">${TRIP_STATUSES.map(s => `<option ${trip.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div></div><button class="btn btn-primary" type="submit" style="margin-top:14px">Save changes</button></form>`, actions: [{ label: 'Cancel', class: 'btn-outline', onClick: closeModal }] });
+  $('#editTripForm').addEventListener('submit', async e => {
+    e.preventDefault(); const startDate = $('#etStart').value, endDate = $('#etEnd').value;
+    if (startDate && endDate && endDate < startDate) return toast('End date cannot be before the start date.', 'error');
+    const changed = startDate !== (trip.startDate || '');
+    const days = changed && startDate ? (trip.days || []).map((d, i) => ({ ...d, date: addDays(startDate, i) })) : trip.days;
+    await saveItem('trips', { ...trip, title: $('#etTitle').value.trim(), destination: $('#etDest').value.trim(), origin: $('#etOrigin').value.trim(), startDate, endDate, travellers: Number($('#etTrav').value), budget: $('#etBudget').value === '' ? null : Number($('#etBudget').value), status: $('#etStatus').value, days });
+    closeModal(); toast('Trip updated.'); renderTripPage();
+  });
 }
 function downloadTripCalendar(trip) {
-  const escapeIcs = value => String(value || '').replace(/\\/g,'\\\\').replace(/,/g,'\\,').replace(/;/g,'\\;').replace(/\n/g,'\\n');
-  const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const escapeIcs = value => String(value || '').replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const events = (trip.days || []).filter(day => day.date).map(day => {
-    const start = String(day.date).replace(/-/g,''); const endDate = new Date(`${day.date}T00:00:00`); endDate.setDate(endDate.getDate()+1);
-    const end = endDate.toISOString().slice(0,10).replace(/-/g,'');
-    return `BEGIN:VEVENT\r\nUID:${escapeIcs(trip.id)}-${day.day}@wayfarer.ai\r\nDTSTAMP:${stamp}\r\nDTSTART;VALUE=DATE:${start}\r\nDTEND;VALUE=DATE:${end}\r\nSUMMARY:${escapeIcs(day.title || `${trip.destination} · Day ${day.day}`)}\r\nEND:VEVENT`;
+    const start = String(day.date).replace(/-/g, ''); const end = addDays(day.date, 1).replace(/-/g, '');
+    const desc = [day.morning && `Morning: ${day.morning}`, day.afternoon && `Afternoon: ${day.afternoon}`, day.evening && `Evening: ${day.evening}`].filter(Boolean).join('\n');
+    return `BEGIN:VEVENT\r\nUID:${escapeIcs(trip.id)}-${day.day}@wayfarer.ai\r\nDTSTAMP:${stamp}\r\nDTSTART;VALUE=DATE:${start}\r\nDTEND;VALUE=DATE:${end}\r\nSUMMARY:${escapeIcs(day.title || `${trip.destination} · Day ${day.day}`)}\r\nDESCRIPTION:${escapeIcs(desc)}\r\nEND:VEVENT`;
   }).join('\r\n');
-  if (!events) return toast('Add dated itinerary items before exporting a calendar.', 'error');
+  if (!events) return toast('Set a start date and add itinerary days before exporting a calendar.', 'error');
   const blob = new Blob([`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//WAYFARER AI//Trip Calendar//EN\r\n${events}\r\nEND:VCALENDAR`], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${String(trip.title || 'wayfarer-trip').toLowerCase().replace(/[^a-z0-9]+/g,'-')}.ics`; a.click(); URL.revokeObjectURL(url);
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${String(trip.title || 'wayfarer-trip').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.ics`; a.click(); URL.revokeObjectURL(url);
 }
 
 async function renderCatalog(kind) {
@@ -278,6 +401,7 @@ async function renderCatalog(kind) {
   $('#providerSearchForm').addEventListener('submit', async e => { e.preventDefault(); runCatalogSearch(kind); });
   const minDate = new Date().toISOString().slice(0,10);
   content.querySelectorAll('input[type="date"]').forEach(input => { input.min = minDate; });
+  applyCatalogPrefill(kind);
 }
 
 function externalSearchCard(title, description, url, provider) {
@@ -313,12 +437,20 @@ function runCatalogSearch(kind) {
 }
 
 async function renderBudget() {
-  const trips = await listItems('trips'); const trip = trips.find(t => t.status !== 'cancelled') || trips[0];
-  if (!trip) { content.innerHTML = `${pageHead('TRAVEL COST CLARITY','Know what is confirmed.','Budget values come from costs and estimates that you enter yourself.')}${emptyState('◎','No trip to review','Create a trip and record real costs to see a budget summary.','<button class="btn btn-primary" data-action="new-trip">Create a trip</button>')}`; return; }
-  const costs = (trip.costs || []).filter(c => Number.isFinite(Number(c.amount)));
-  const total = costs.reduce((sum, c) => sum + Number(c.amount), 0);
-  content.innerHTML = `${pageHead('TRAVEL COST CLARITY','Your real trip costs.','This view totals only costs recorded by you or returned by a travel provider.')}
-  <div class="grid grid-2"><div class="card"><p class="eyebrow">RECORDED COST TOTAL</p><h3 style="font-size:42px">${money(total)}</h3><p class="card-sub">${costs.length} recorded items · ${trip.budget ? `Your budget: ${money(trip.budget)}` : 'No budget entered'}</p>${trip.budget ? `<div class="budget-track"><span style="width:${Math.min(100, total / trip.budget * 100)}%"></span></div><div class="budget-row"><span>Recorded budget share</span><strong>${Math.round(total / trip.budget * 100)}%</strong></div>` : ''}</div><div class="card"><p class="eyebrow">COST BREAKDOWN</p>${costs.length ? costs.map(c => `<div class="budget-row"><span>${escapeHTML(c.label || c.type)}</span><strong>${money(c.amount, c.currency || 'INR')}</strong></div>`).join('') : '<p class="card-sub">No costs have been recorded. WAYFARER will not estimate category splits from fabricated percentages.</p>'}</div></div>`;
+  const trips = await listItems('trips');
+  if (!trips.length) { content.innerHTML = `${pageHead('TRAVEL COST CLARITY','Know what is estimated and what is confirmed.','Estimates and your own recorded costs are kept separate.')}${emptyState('◎','No trip to review','Create a trip, or ask the AI planner for a plan with a budget estimate.','<button class="btn btn-primary" data-action="new-trip">Create a trip</button>')}`; return; }
+  const trip = trips.find(t => t.id === budgetTripId) || trips.find(t => t.status !== 'cancelled') || trips[0]; budgetTripId = trip.id;
+  const trav = Math.max(1, Number(trip.travellers) || 1); const be = trip.budgetEstimate || {}; const est = budgetTotal(be);
+  const costs = (trip.costs || []).filter(c => Number.isFinite(Number(c.amount))); const spent = costs.reduce((s, c) => s + Number(c.amount), 0);
+  const bar = (v, max) => max ? `<div class="budget-track"><span style="width:${Math.min(100, v / max * 100)}%"></span></div>` : '';
+  content.innerHTML = `${pageHead('TRAVEL COST CLARITY','Estimates vs. real costs.','Estimates are rough guides. Recorded costs are amounts you entered from real receipts or confirmations.')}
+  <div class="card" style="margin-bottom:16px"><div class="field" style="max-width:420px"><label for="budgetTrip">Trip</label><select class="select" id="budgetTrip">${trips.map(t => `<option value="${escapeHTML(t.id)}" ${t.id === trip.id ? 'selected' : ''}>${escapeHTML(t.title || t.destination)}</option>`).join('')}</select></div></div>
+  <div class="grid grid-2"><div class="card"><p class="eyebrow">ESTIMATE · NOT A QUOTE</p><h3 style="font-size:38px">${est ? money(est) : '—'}</h3><p class="card-sub">${est ? `${money(est / trav)} per person · ${trav} traveller${trav === 1 ? '' : 's'}` : 'No estimate yet. Add one on the trip page or ask the AI planner.'}</p>${trip.budget && est ? `${bar(est, trip.budget)}<div class="budget-row"><span>Your budget ${money(trip.budget)}</span><strong>${Math.round(est / trip.budget * 100)}% used</strong></div>` : ''}${BUDGET_KEYS.filter(([k]) => be[k] !== undefined).map(([k, label]) => `<div class="budget-row"><span>${label}</span><strong>${money(be[k])}</strong></div>`).join('')}<button class="btn btn-outline btn-small" style="margin-top:12px" data-open-trip="${escapeHTML(trip.id)}">Edit estimate ↗</button></div>
+  <div class="card"><p class="eyebrow">RECORDED COSTS · ENTERED BY YOU</p><h3 style="font-size:38px">${money(spent)}</h3><p class="card-sub">${costs.length} recorded item${costs.length === 1 ? '' : 's'}${trip.budget ? ` · budget ${money(trip.budget)}` : ''}</p>${trip.budget ? bar(spent, trip.budget) : ''}${costs.map(c => `<div class="budget-row"><span>${escapeHTML(c.label || 'Cost')}</span><strong>${money(c.amount)} <button class="link-btn" data-del-cost="${escapeHTML(c.id || '')}" aria-label="Remove cost">✕</button></strong></div>`).join('') || '<p class="card-sub">Nothing recorded yet.</p>'}
+  <form id="costForm" class="form-grid" style="margin-top:14px"><div class="field"><label for="costLabel">What was it?</label><input class="input" id="costLabel" required maxlength="80" placeholder="e.g. Train ticket"></div><div class="field"><label for="costAmount">Amount (₹)</label><input class="input" id="costAmount" type="number" min="0" step="1" required></div><div class="field" style="align-self:end"><button class="btn btn-primary btn-small" type="submit">Add cost</button></div></form></div></div>`;
+  $('#budgetTrip').addEventListener('change', e => { budgetTripId = e.target.value; renderBudget(); });
+  $('#costForm').addEventListener('submit', async e => { e.preventDefault(); const next = [...(trip.costs || []), { id: id('cost'), label: $('#costLabel').value.trim(), amount: Number($('#costAmount').value), currency: 'INR', createdAt: new Date().toISOString() }]; await saveItem('trips', { ...trip, costs: next }); renderBudget(); });
+  $$('[data-del-cost]').forEach(b => b.addEventListener('click', async () => { await saveItem('trips', { ...trip, costs: (trip.costs || []).filter(c => c.id !== b.dataset.delCost) }); renderBudget(); }));
 }
 
 async function renderBookings() {
@@ -369,10 +501,14 @@ async function renderSettings() {
   $('#agentHelp').addEventListener('click', () => showModal({ eyebrow: 'AGENT37 CLOUD', title: 'How the secure connection works', body: `<p>Your browser sends a Firebase sign-in token to this website's server-side /api/agent37 route. The server verifies that token and calls your selected Hermes instance using the Agent37 Cloud API key stored in Vercel.</p><p>The Agent37 key is never sent to the browser. The instance must be running, its Hermes API gateway must be available, and its configured model/provider must be usable.</p><p>Do not paste the sk_live key into website code or chat messages.</p>`, actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] }));
 }
 
+function authMessage(error) {
+  const map = { 'auth/invalid-credential': 'Email or password is incorrect.', 'auth/user-not-found': 'No account with that email. Choose “Create account”.', 'auth/wrong-password': 'Email or password is incorrect.', 'auth/email-already-in-use': 'That email already has an account. Use “Sign in”.', 'auth/weak-password': 'Password must be at least 6 characters.', 'auth/invalid-email': 'Enter a valid email address.', 'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.', 'auth/operation-not-allowed': 'Email/password sign-in is not enabled in Firebase Console → Authentication → Sign-in method.', 'auth/unauthorized-domain': 'This website domain is not authorised in Firebase Console → Authentication → Settings → Authorized domains.', 'auth/popup-closed-by-user': 'Sign-in window was closed.', 'auth/network-request-failed': 'Network problem. Check your connection.' };
+  return map[error?.code] || error?.message || 'Sign-in failed.';
+}
 async function showLoginModal() {
   showModal({ eyebrow: 'YOUR WAYFARER ACCOUNT', title: 'Sign in or create an account', body: `<form id="authForm"><div class="field"><label for="authEmail">Email</label><input class="input" id="authEmail" type="email" required placeholder="you@example.com"></div><div class="field" style="margin-top:10px"><label for="authPassword">Password</label><input class="input" id="authPassword" type="password" minlength="6" required placeholder="At least 6 characters"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn btn-primary" type="submit" data-auth-mode="signin">Sign in</button><button class="btn btn-outline" type="submit" data-auth-mode="signup">Create account</button><button class="btn btn-outline" id="googleLogin" type="button">Continue with Google</button></div></form>`, actions: [{ label: 'Close', class: 'btn-outline', onClick: closeModal }] });
-  $('#authForm').addEventListener('submit', async e => { e.preventDefault(); const mode = e.submitter?.dataset.authMode || 'signin'; try { const email = $('#authEmail').value, password = $('#authPassword').value; const result = mode === 'signup' ? await signUpEmail(email, password) : await signInEmail(email, password); setCurrentUser(result.user); closeModal(); updateUserChrome(); toast('Signed in.'); routeTo('dashboard'); } catch (error) { toast(error.message, 'error'); } });
-  $('#googleLogin').addEventListener('click', async () => { try { const result = await signInGoogle(); setCurrentUser(result.user); closeModal(); updateUserChrome(); routeTo('dashboard'); } catch (error) { toast(error.message, 'error'); } });
+  $('#authForm').addEventListener('submit', async e => { e.preventDefault(); const mode = e.submitter?.dataset.authMode || 'signin'; try { const email = $('#authEmail').value, password = $('#authPassword').value; const result = mode === 'signup' ? await signUpEmail(email, password) : await signInEmail(email, password); setCurrentUser(result.user); closeModal(); updateUserChrome(); toast('Signed in.'); routeTo(currentRoute === 'planner' ? 'planner' : 'dashboard'); } catch (error) { toast(authMessage(error), 'error'); } });
+  $('#googleLogin').addEventListener('click', async () => { try { const result = await signInGoogle(); setCurrentUser(result.user); closeModal(); updateUserChrome(); routeTo(currentRoute === 'planner' ? 'planner' : 'dashboard'); } catch (error) { toast(authMessage(error), 'error'); } });
 }
 
 async function handleDestinationSave(placeId) {
@@ -398,11 +534,9 @@ async function showPlaceWeather(placeId) {
 
 async function sendHelpMessage(message) {
   const text = String(message || '').trim(); if (!text) return;
-  helpMessages.push({ role: 'user', text }); $('#helpInput').value = ''; renderHelpMessages();
-  if (agent37ConnectionStatus().connected) {
-    try { const reply = await sendToAgent37({ message: `Answer this question about the WAYFARER AI website. Current page: ${currentRoute}. Do not claim an action was performed. Question: ${text}`, profile, tools: [] }); helpMessages.push({ role: 'assistant', text: reply.reply }); }
-    catch (error) { helpMessages.push({ role: 'assistant', text: `Agent37 is unavailable: ${error.message}. No generated response was substituted. You can use the navigation menu or the setup guide in Settings.` }); }
-  } else helpMessages.push({ role: 'assistant', text: websiteHelp(text) });
+  // Website help is answered locally so it never spends Agent37 credits.
+  helpMessages.push({ role: 'user', text }); $('#helpInput').value = '';
+  helpMessages.push({ role: 'assistant', text: websiteHelp(text) });
   renderHelpMessages();
 }
 function websiteHelp(message) {
@@ -436,7 +570,11 @@ document.addEventListener('click', async event => {
   const openTripButton = event.target.closest('[data-open-trip]'); if (openTripButton) { openTrip(openTripButton.dataset.openTrip); return; }
   const openTask = event.target.closest('[data-open-task]'); if (openTask) { inspectTask(openTask.dataset.openTask); return; }
   const download = event.target.closest('[data-download-file]'); if (download) { try { openExternal(await getPrivateFileUrl(download.dataset.downloadFile)); } catch (error) { toast(error.message, 'error'); } return; }
-  const plannerPrompt = event.target.closest('[data-planner-prompt]'); if (plannerPrompt) { sendAgentMessage(plannerPrompt.dataset.plannerPrompt, 'planner'); return; }
+  const plannerFill = event.target.closest('[data-planner-fill]'); if (plannerFill) { const i = $('#plannerInput'); if (i) { i.value = plannerFill.dataset.plannerFill; i.focus(); } return; }
+  const savePlan = event.target.closest('[data-save-plan]'); if (savePlan) { confirmSavePlan(Number(savePlan.dataset.savePlan)); return; }
+  const planSearch = event.target.closest('[data-plan-search]'); if (planSearch) { const plan = plannerMessages[Number(planSearch.dataset.planIdx)]?.plan; if (plan) openSearchFor(planSearch.dataset.planSearch, plan); return; }
+  const landingChip = event.target.closest('[data-landing-search]'); if (landingChip) { enterApp(); routeTo('explore'); $('#destinationSearch').value = landingChip.dataset.landingSearch; searchDestinations(landingChip.dataset.landingSearch); return; }
+  const landingLogin = event.target.closest('[data-landing-login]'); if (landingLogin) { enterApp(); showLoginModal(); return; }
   const helpPrompt = event.target.closest('[data-help]'); if (helpPrompt) { sendHelpMessage(helpPrompt.dataset.help); return; }
   const newTrip = event.target.closest('[data-action="new-trip"]'); if (newTrip) { showNewTripForm(); return; }
   const apiTest = event.target.closest('[data-action="test-public-apis"]'); if (apiTest) {
@@ -455,6 +593,13 @@ $('#helpForm').addEventListener('submit', e => { e.preventDefault(); sendHelpMes
 $('#notificationBtn').addEventListener('click', async () => { const items = await listItems('notifications'); showModal({ eyebrow: 'YOUR NOTIFICATIONS', title: 'Recent updates', body: items.length ? items.map(n => `<div class="budget-row"><span><strong>${escapeHTML(n.title)}</strong><br><small>${escapeHTML(n.body)}</small></span><small>${new Date(n.createdAt).toLocaleDateString('en-IN')}</small></div>`).join('') : '<p>No notifications yet.</p>', actions: [{ label: 'Close', class: 'btn-primary', onClick: closeModal }] }); });
 $('#globalSearch').addEventListener('keydown', event => { if (event.key === 'Enter') { const query = event.target.value.toLowerCase(); const routes = [['trip','trips'],['flight','flights'],['hotel','hotels'],['stay','hotels'],['experience','experiences'],['budget','budget'],['booking','bookings'],['workspace','workspace'],['destination','explore']]; const found = routes.find(([term]) => query.includes(term)); routeTo(found ? found[1] : 'explore'); if (currentRoute === 'explore' && query.length >= 2) { $('#destinationSearch').value = event.target.value; searchDestinations(event.target.value); } } });
 document.addEventListener('keydown', event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); $('#globalSearch').focus(); } if (event.key === 'Escape') closeMobileNav(); });
+
+// Landing page <-> app view, driven by the URL hash (#app shows the app).
+function syncView() { const landing = !location.hash || location.hash === '#landing'; document.body.dataset.view = landing ? 'landing' : 'app'; if (landing) window.scrollTo(0, 0); }
+function enterApp() { if (location.hash !== '#app') location.hash = '#app'; syncView(); }
+window.addEventListener('hashchange', syncView);
+$('#landingForm')?.addEventListener('submit', e => { e.preventDefault(); plannerDraft = $('#landingPrompt').value.trim(); enterApp(); routeTo('planner'); });
+syncView();
 
 async function boot() {
   try {
@@ -478,6 +623,7 @@ async function boot() {
     }
     profile = await getProfile();
     updateUserChrome();
+    await refreshAgent37Status(); updateUserChrome();
     routeTo('dashboard');
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./service-worker.js').catch(() => {});
   } catch (error) { console.error(error); toast(`Startup issue: ${error.message}`, 'error'); }

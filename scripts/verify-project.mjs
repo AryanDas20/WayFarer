@@ -33,6 +33,10 @@ assert.match(adapter, /session_id/);
 assert.match(guide, /AGENT37_BASE_URL/);
 assert.match(guide, /FIREBASE_APP_ID/);
 assert.match(guide, /X-Agent37-Key/);
+assert.match(read('js/plan.js'), /wayfarer-plan/);
+assert.match(read('index.html'), /id="landing"/);
+assert.doesNotMatch(agentApi, /metadata:|mode: 'chat'/);
+assert.match(read('service-worker.js'), /Network-first/);
 assert.equal(fs.existsSync(new URL('../workers/travel-api/src/index.js', import.meta.url)), false);
 
 console.log('Project check passed: Firebase runtime configuration, authenticated server-side Agent37 proxy, secret isolation, external travel searches, and no Amadeus integration.');

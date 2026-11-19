@@ -37,3 +37,18 @@ export const TravelProvider = {
     return { ...result, source: 'Frankfurter reference rates', rateType: 'Reference rate, not a real-time card or cash quote' };
   }
 };
+
+/** Forecast for trip dates. Open-Meteo forecasts cover ~16 days; outside that we say so instead of guessing. */
+export async function weatherForDates(latitude, longitude, startDate, endDate) {
+  const today = new Date(); const iso = d => d.toISOString().slice(0, 10);
+  const max = new Date(today); max.setUTCDate(max.getUTCDate() + 15);
+  const inRange = startDate && startDate >= iso(today) && startDate <= iso(max);
+  const url = new URL(WEATHER_URL);
+  const params = { latitude: String(latitude), longitude: String(longitude), daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code', timezone: 'auto' };
+  if (inRange) { params.start_date = startDate; params.end_date = endDate && endDate <= iso(max) && endDate >= startDate ? endDate : iso(max); }
+  else params.forecast_days = '7';
+  url.search = new URLSearchParams(params).toString();
+  const data = await fetchJson(url);
+  return { ...data, matchesTripDates: !!inRange, source: 'Open-Meteo' };
+}
+export const WMO = c => ({0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',80:'Rain showers',81:'Rain showers',82:'Violent showers',95:'Thunderstorm',96:'Thunderstorm, hail',99:'Thunderstorm, hail'}[c] || 'Mixed conditions');

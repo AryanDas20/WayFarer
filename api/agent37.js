@@ -9,10 +9,23 @@ async function getFirebaseCertificates() {
   if (!response.ok) throw new Error('Could not retrieve Firebase token verification certificates.');
   const certs = await response.json();
   const cacheControl = response.headers.get('cache-control') || '';
-  const maxAge = Number(cacheControl.match(/max-age=(\\d+)/i)?.[1] || 3600);
+  const maxAge = Number(cacheControl.match(/max-age=(\d+)/i)?.[1] || 3600);
   firebaseCertCache = { certs, expiresAt: Date.now() + Math.max(60, maxAge) * 1000 };
   return certs;
 }
+
+// Best-effort per-user limiter (resets when the serverless instance recycles).
+const RATE = { windowMs: 10 * 60 * 1000, max: 30 };
+const hits = new Map();
+function rateLimited(uid) {
+  const now = Date.now();
+  const recent = (hits.get(uid) || []).filter(t => now - t < RATE.windowMs);
+  if (recent.length >= RATE.max) { hits.set(uid, recent); return true; }
+  recent.push(now); hits.set(uid, recent);
+  if (hits.size > 5000) for (const [key, list] of hits) if (!list.some(t => now - t < RATE.windowMs)) hits.delete(key);
+  return false;
+}
+class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 
 function sendJson(res, status, payload) {
   return res.status(status).json(payload);
@@ -37,15 +50,18 @@ async function verifyFirebaseUser(req) {
   if (!projectId) throw new Error('Firebase project is not configured on the server.');
   const auth = req.headers.authorization || '';
   const match = auth.match(/^Bearer\s+(.+)$/i);
-  if (!match) throw new Error('Sign in to your WAYFARER account before using the AI assistant.');
+  if (!match) throw new HttpError(401, 'Sign in to your WAYFARER account before using the AI assistant.');
   const parts = match[1].split('.');
-  if (parts.length !== 3) throw new Error('Firebase sign-in token is malformed.');
-  const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
-  const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-  if (header.alg !== 'RS256' || !header.kid) throw new Error('Firebase sign-in token uses an unsupported signature.');
+  if (parts.length !== 3) throw new HttpError(401, 'Firebase sign-in token is malformed.');
+  let header, payload;
+  try {
+    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+  } catch { throw new HttpError(401, 'Firebase sign-in token is malformed.'); }
+  if (header.alg !== 'RS256' || !header.kid) throw new HttpError(401, 'Firebase sign-in token uses an unsupported signature.');
   const certs = await getFirebaseCertificates();
   const cert = certs[header.kid];
-  if (!cert) throw new Error('Firebase sign-in token signing key is not recognized. Retry after refreshing the page.');
+  if (!cert) throw new HttpError(401, 'Firebase sign-in token signing key is not recognized. Retry after refreshing the page.');
   const publicKey = createPublicKey(cert);
   const valid = verifySignature('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), publicKey, Buffer.from(parts[2], 'base64url'));
   const now = Math.floor(Date.now() / 1000);
@@ -53,7 +69,7 @@ async function verifyFirebaseUser(req) {
       typeof payload.sub !== 'string' || !payload.sub || payload.sub.length > 128 ||
       typeof payload.exp !== 'number' || payload.exp <= now ||
       typeof payload.iat !== 'number' || payload.iat > now + 60) {
-    throw new Error('Firebase sign-in token is invalid or expired. Sign in again and retry.');
+    throw new HttpError(401, 'Firebase sign-in token is invalid or expired. Sign in again and retry.');
   }
   return payload.sub;
 }
@@ -77,36 +93,40 @@ export default async function handler(req, res) {
   const agent = getConfig();
   if (agent.error) return sendJson(res, 503, { error: agent.error });
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 55_000);
+  res.on?.('close', () => controller.abort());
   try {
     const uid = await verifyFirebaseUser(req);
+    if (rateLimited(uid)) {
+      res.setHeader('Retry-After', '60');
+      return sendJson(res, 429, { error: 'Too many AI requests. Please wait a few minutes and try again.' });
+    }
     const input = typeof req.body?.input === 'string' ? req.body.input.trim() : '';
     const sessionId = typeof req.body?.session_id === 'string' ? req.body.session_id.trim() : '';
     if (!input || input.length > 12000) return sendJson(res, 400, { error: 'Message is required and must be 12,000 characters or fewer.' });
     if (sessionId && !/^[a-f0-9]{16,64}$/i.test(sessionId)) return sendJson(res, 400, { error: 'Invalid Agent37 session ID.' });
 
+    // Only fields documented for POST /v1/responses are sent: input, session_id, stream.
     const upstream = await fetch(agent.endpoint, {
       method: 'POST',
-      headers: {
-        'X-Agent37-Key': agent.apiKey,
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream'
-      },
-      body: JSON.stringify({
-        input,
-        ...(sessionId ? { session_id: sessionId } : {}),
-        stream: true,
-        agent: 'hermes',
-        mode: 'chat',
-        metadata: { product: 'WAYFARER AI', firebase_uid: uid }
-      })
+      signal: controller.signal,
+      headers: { 'X-Agent37-Key': agent.apiKey, 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+      body: JSON.stringify({ input, ...(sessionId ? { session_id: sessionId } : {}), stream: true })
     });
 
     if (!upstream.ok) {
-      const detail = await upstream.text();
-      return sendJson(res, upstream.status, {
-        error: `Agent37 returned HTTP ${upstream.status}.`,
-        detail: detail.slice(0, 1200)
-      });
+      const raw = await upstream.text().catch(() => '');
+      const friendly = {
+        401: 'Agent37 rejected the API key (AGENT37_API_KEY). Check the key in Vercel and redeploy.',
+        402: 'Agent37 reports insufficient credit. Add funds in the Agent37 billing dashboard.',
+        403: 'Agent37 refused access to this instance. Check that the key belongs to the same workspace as the instance.',
+        404: 'Agent37 instance not found. Check AGENT37_INSTANCE_ID and AGENT37_BASE_URL.',
+        409: 'The AI is still answering your previous message. Wait a moment and try again.',
+        429: 'Agent37 rate limit reached. Wait a minute and try again.'
+      }[upstream.status] || `Agent37 returned HTTP ${upstream.status}.`;
+      console.error('Agent37 upstream error', upstream.status, raw.slice(0, 300));
+      return sendJson(res, upstream.status === 401 || upstream.status === 403 ? 502 : upstream.status, { error: friendly, detail: raw.slice(0, 300) });
     }
     if (!upstream.body) return sendJson(res, 502, { error: 'Agent37 returned an empty response stream.' });
 
@@ -116,10 +136,16 @@ export default async function handler(req, res) {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders?.();
-    Readable.fromWeb(upstream.body).pipe(res);
+    const stream = Readable.fromWeb(upstream.body);
+    stream.on('error', () => res.end());
+    stream.on('end', () => clearTimeout(timer));
+    stream.pipe(res);
   } catch (error) {
-    console.error('WAYFARER Agent37 proxy error:', error);
-    if (!res.headersSent) return sendJson(res, 401, { error: error.message || 'Authentication failed.' });
-    res.end();
+    clearTimeout(timer);
+    if (res.headersSent) { res.end(); return; }
+    if (error instanceof HttpError) return sendJson(res, error.status, { error: error.message });
+    if (error?.name === 'AbortError') return sendJson(res, 504, { error: 'Agent37 took too long to respond. Try a shorter request.' });
+    console.error('WAYFARER Agent37 proxy error:', error?.message || error);
+    return sendJson(res, 502, { error: 'Could not reach Agent37. Check that your instance is running and AGENT37_BASE_URL is correct.' });
   }
 }
